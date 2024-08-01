@@ -218,6 +218,7 @@ for idx in distance_protection_data.index:
                                                bus_id=distance_protection_data.at[idx, "bus_id"],
                                                first_line_id=distance_protection_data.at[idx, "first_line_id"], net=net)
 
+
 # print(
 #     f"Zone Thresholds: Zone 1: {Protection_devices[1].associated_zone_impedance[0]}, Zone 2: {Protection_devices[1].associated_zone_impedance[1]}, Zone 3: {Protection_devices[1].associated_zone_impedance[2]}")
 
@@ -230,16 +231,56 @@ def find_affected_devices(line_id, all_devices):
     return affected_devices
 
 
+def filter_and_save_devices_by_line_id(devices, line_id):
+    """Filters the list of ProtectionDevice objects based on the associated_line_id and saves the associated_line_id."""
+    matching_devices = []
+    saved_associated_line_ids = []
+
+    for device in devices.values():
+        if device.associated_line_id == line_id:
+            matching_devices.append(device)
+            saved_associated_line_ids.append(device.associated_line_id)
+
+    return matching_devices, saved_associated_line_ids
+
+
+def find_line_id_between_buses(bus_id, temp_bus, net):
+    # Find the line_id that connects bus_id and temp_bus
+    for idx, line in net.line.iterrows():
+        if (line['from_bus'] == bus_id and line['to_bus'] == temp_bus) or \
+                (line['from_bus'] == temp_bus and line['to_bus'] == bus_id):
+            return idx
+    return None  # Return None or raise an error if no such line is found
+
+
+def temporally_update_associated_line_id(matching_devices, temp_bus, net):
+    if matching_devices is not None:
+        for device in matching_devices:
+            new_line_id = find_line_id_between_buses(device.bus_id, temp_bus,net)
+            # update the device's associated line id
+            device.associated_line_id = new_line_id
+
+
+def recover_associated_line_id(matching_devices, saved_associated_line_ids):
+    if matching_devices is not None:
+        idx = 0
+        for device in matching_devices:
+            # update the device's associated line id
+            device.associated_line_id = saved_associated_line_ids[idx]
+            idx += 1
+
+
 def simulate_faults_along_line(net, line_id, affected_devices, interval_km=0.25):
     """Simulate faults along a line by adding temporary buses at specified intervals."""
+    # Make original line out of service
     net.line.at[line_id, 'in_service'] = False
     line = net.line.loc[line_id]
     # evenly distribute the faults in the line
     line_length = line.length_km
     num_faults = int(line_length / interval_km) - 1
     # temporally change some parameters of the protection devices due to the fault for simple calculation
-    matching_devices = list(filter(lambda device: device.associated_line_id == line_id, affected_devices))
-
+    #matching_devices = list(filter(lambda device: device.associated_line_id == line_id, affected_devices))
+    matching_devices, saved_ids = filter_and_save_devices_by_line_id(affected_devices, line_id)
     # if the sensed results are different from the calculated results, it is recorded
     sense_wrong_dict = {}
     if num_faults > 0:
@@ -249,7 +290,7 @@ def simulate_faults_along_line(net, line_id, affected_devices, interval_km=0.25)
         for fault_location in fault_locations:
             # Create a temporary bus at fault location
             temp_bus = pp.create_bus(net, vn_kv=HV, type="n", name="fault_bus")
-            # Split the line at the fault location,copy all the other parameters of the original line to the new line, except for the length
+            # Split the line at the fault location,copy all the other parameters of the original line to the new line
             temp_line_part1 = pp.create_line_from_parameters(net, from_bus=line.from_bus, to_bus=temp_bus,
                                                              length_km=fault_location,
                                                              **{attr: getattr(line, attr) for attr in line_data.columns
@@ -260,14 +301,15 @@ def simulate_faults_along_line(net, line_id, affected_devices, interval_km=0.25)
                                                              **{attr: getattr(line, attr) for attr in line_data.columns
                                                                 if attr not in ['from_bus', 'to_bus', 'length_km',
                                                                                 'name']})
-            # after adding the fault bus into the netowrk, simulate a three-phase short circuit at the temporary bus
+            # after adding the fault bus into the network, simulate a three-phase short circuit at the temporary bus
             sc.calc_sc(net, fault="3ph", bus=temp_bus, branch_results=True, return_all_currents=True)
-
+            #change the parameters of the protection device
+            temporally_update_associated_line_id(matching_devices,temp_bus,net)
             for device in affected_devices:
 
                 # according to the line length to calcualte the distance the protection devices supposed to sense
                 impedance = calculate_impedance(net, affected_devices[device], affected_devices[device].bus_id,
-                                                temp_bus, line_id)
+                                                temp_bus)
                 zone_calculated = affected_devices[device].check_zone(impedance)
 
                 # Get the impedance at the protection device through the line results
@@ -286,7 +328,7 @@ def simulate_faults_along_line(net, line_id, affected_devices, interval_km=0.25)
                 else:
                     print("the line result is not existed")
                 # calcualte the magnitude and the angle of the impedance
-                r_sensed = vm_pu * S_base * 1e-3 / ikss_ka
+                r_sensed = vm_pu * HV * 1e-3 / ikss_ka
                 angle_sensed = va_degree - ikss_degree
                 zone_sensed = affected_devices[device].check_zone_with_mag_angle(r_sensed, angle_sensed)
 
@@ -311,12 +353,12 @@ def simulate_faults_along_line(net, line_id, affected_devices, interval_km=0.25)
                     }
                 # print(
                 #     f"Device {affected_devices[device].device_id} at Bus {affected_devices[device].bus_id} triggered: {zone_calculated}, Impedance: {impedance}")
-
+            recover_associated_line_id(matching_devices,saved_ids)
             # Remove temporary buses and associated lines after analysis.
             net.line.drop(temp_line_part1, inplace=True)
             net.line.drop(temp_line_part2, inplace=True)
             net.bus.drop(temp_bus, inplace=True)
-            # Make original line out of service
+
     return sense_wrong_dict
 
 
@@ -386,16 +428,20 @@ def convert_to_directed(g_undirected, initial_direction):
     return g_directed
 
 
-def calculate_impedance(net, device, from_bus, to_bus, examed_line_id):
+def calculate_impedance(net, device, from_bus, to_bus):
     """Calculate the impedance between two buses. Shortest distance"""
     graph = top.create_nxgraph(net, include_lines=True, include_impedances=True, calc_branch_impedances=True)
     initial_associated_line = net.line.loc[device.associated_line_id]
-    if examed_line_id == device.associated_line_id:
-        initial_from_bus = from_bus
-        initial_to_bus = to_bus
-    else:
-        initial_from_bus = from_bus
-        initial_to_bus = initial_associated_line.from_bus if initial_from_bus != initial_associated_line.from_bus else initial_associated_line.to_bus
+    # # this applies to the case that the parameter of the proteciton device especially the associated line id is not
+    # changed, and it needs one extra input: the examied_line_id
+    # if examed_line_id == device.associated_line_id:
+    #     initial_from_bus = from_bus
+    #     initial_to_bus = to_bus
+    # else:
+    #     initial_from_bus = from_bus
+    #     initial_to_bus = initial_associated_line.from_bus if initial_from_bus != initial_associated_line.from_bus else initial_associated_line.to_bus
+    initial_from_bus = from_bus
+    initial_to_bus = initial_associated_line.from_bus if initial_from_bus != initial_associated_line.from_bus else initial_associated_line.to_bus
 
     # Set initial direction based on device's associated line
     initial_direction = (initial_from_bus, initial_to_bus)
