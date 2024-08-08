@@ -1,17 +1,12 @@
 import pandapower as pp
 import pandas as pd
-from pandapower.plotting import simple_plotly
-from pandapower.plotting import simple_plot
 import pandapower.topology as top
 import networkx as nx
 from shapely.geometry import Point
 from shapely.geometry.polygon import Polygon
 import math
 import pandapower.shortcircuit as sc
-import matplotlib.pyplot as plt
-import matplotlib
 
-matplotlib.use('TkAgg', force=True)
 # Read the data from the Excel file
 excel_file = 'grid_data_sheet.xlsx'
 
@@ -63,12 +58,17 @@ print(net)
 
 
 class ProtectionDevice:
-    def __init__(self, device_id, bus_id, first_line_id, net, depth=3):
+    def __init__(self, device_id, bus_id, first_line_id, replaced_line_id, net, depth=3):
         self.device_id = device_id
         self.bus_id = bus_id
         self.associated_line_id = first_line_id
+        self.replaced_line_id = replaced_line_id
         self.net = net
         self.associated_zone_impedance = self.find_associated_lines(first_line_id, depth)
+
+    def update_associated_line(self):
+        if not math.isnan(self.replaced_line_id):
+            self.associated_line_id = self.replaced_line_id
 
     def find_associated_lines(self, start_line_id, depth):
         # Create a graph of the network
@@ -95,7 +95,7 @@ class ProtectionDevice:
         third_zone_line_impedance = 0
         current_depth_index = 1
         while current_depth_index < depth:
-            max_weight = 0
+            min_weight = float('inf')
             current_depth_index += 1
             # max_line_id = None
             # Get all connected lines to the current bus
@@ -104,9 +104,9 @@ class ProtectionDevice:
             for from_bus, to_bus, data in edges:
                 # line_resistance_0 = data["r_ohm"]
                 if to_bus != previous_bus:
-                    # choose the line which has highes weight and add it into the associated lines
-                    if data['weight'] > max_weight:
-                        max_weight = data['weight']
+                    # choose the line which has the lowest weight and add it into the associated lines
+                    if data['weight'] < min_weight:
+                        min_weight = data['weight']
                         next_bus = to_bus
                         if current_depth_index == 2:
                             second_zone_line_impedance = 0.9 * (
@@ -194,36 +194,55 @@ class ProtectionDevice:
         return "Out of Zone"
 
 
-# #for calculating the zones, it is neccessary to not consider the intermediate nodes
-# for line in net.line.itertuples():
-#     if net.bus.loc[line.from_bus, 'type'] == '"n"' or net.bus.loc[line.to_bus, 'type'] == '"n"':
-#         print(line.Index)
-#         net.line.at[line.Index, 'in_service'] = False
-#
-# pp.create_line_from_parameters(net, from_bus=2, to_bus=3,
-#                                length_km=line_data.at[5, "length_km"] + line_data.at[6, "length_km"] + line_data.at[
-#                                    7, "length_km"] + line_data.at[8, "length_km"] + line_data.at[9, "length_km"] +
-#                                          line_data.at[10, "length_km"], r_ohm_per_km=line_data.at[5, "r_ohm_per_km"],
-#                                x_ohm_per_km=line_data.at[5, "x_ohm_per_km"], c_nf_per_km=line_data.at[5, "c_nf_per_km"],
-#                                r0_ohm_per_km=line_data.at[5, "r0_ohm_per_km"],
-#                                x0_ohm_per_km=line_data.at[5, "x0_ohm_per_km"],
-#                                c0_nf_per_km=line_data.at[5, "c0_nf_per_km"], max_i_ka=line_data.at[5, "max_i_ka"],
-#                                parallel=line_data.at[5, "parallel"])
+#for calculating the zones, it is necessary to not consider the intermediate nodes
+for line in net.line.itertuples():
+    if net.bus.loc[line.from_bus, 'type'] == '"n"' or net.bus.loc[line.to_bus, 'type'] == '"n"':
+        print(line.Index)
+        net.line.at[line.Index, 'in_service'] = False
 
-distance_protection_data = pd.read_excel(excel_file, sheet_name='dist_protect_data _simple', index_col=0)
+line_between_C_D = pp.create_line_from_parameters(net, from_bus=2, to_bus=3,
+                                                  length_km=line_data.at[5, "length_km"] + line_data.at[
+                                                      6, "length_km"] + line_data.at[
+                                                                7, "length_km"] + line_data.at[8, "length_km"] +
+                                                            line_data.at[9, "length_km"] +
+                                                            line_data.at[10, "length_km"],
+                                                  r_ohm_per_km=line_data.at[5, "r_ohm_per_km"],
+                                                  x_ohm_per_km=line_data.at[5, "x_ohm_per_km"],
+                                                  c_nf_per_km=line_data.at[5, "c_nf_per_km"],
+                                                  r0_ohm_per_km=line_data.at[5, "r0_ohm_per_km"],
+                                                  x0_ohm_per_km=line_data.at[5, "x0_ohm_per_km"],
+                                                  c0_nf_per_km=line_data.at[5, "c0_nf_per_km"],
+                                                  max_i_ka=line_data.at[5, "max_i_ka"],
+                                                  parallel=line_data.at[5, "parallel"])
+
+#distance_protection_data = pd.read_excel(excel_file, sheet_name='dist_protect_data _simple', index_col=0)
+distance_protection_data = pd.read_excel(excel_file, sheet_name='dist_protect_data_complex', index_col=0)
 Protection_devices = {}
 for idx in distance_protection_data.index:
     # print(idx)
     Protection_devices[idx] = ProtectionDevice(device_id=distance_protection_data.at[idx, "device_id"],
                                                bus_id=distance_protection_data.at[idx, "bus_id"],
-                                               first_line_id=distance_protection_data.at[idx, "first_line_id"], net=net)
-
+                                               first_line_id=distance_protection_data.at[idx, "first_line_id"],
+                                               replaced_line_id=distance_protection_data.at[idx, "replaced_line_id"],
+                                               net=net)
 
 # print(
 #     f"Zone Thresholds: Zone 1: {Protection_devices[1].associated_zone_impedance[0]}, Zone 2: {Protection_devices[1].associated_zone_impedance[1]}, Zone 3: {Protection_devices[1].associated_zone_impedance[2]}")
 
 
 #print(Protection_devices[0].check_zone(2 + 1j))
+
+""" after initialing the protection device parameter, the line between c and d is not needed anymore"""
+# recover the line
+net.line.drop(line_between_C_D, inplace=True)
+for line in net.line.itertuples():
+    if net.bus.loc[line.from_bus, 'type'] == '"n"' or net.bus.loc[line.to_bus, 'type'] == '"n"':
+        print(line.Index)
+        net.line.at[line.Index, 'in_service'] = True
+
+# keep the associated_zone_impedance but replace the associated lines
+for device in Protection_devices.values():
+    device.update_associated_line()
 
 
 def find_affected_devices(line_id, all_devices):
@@ -256,7 +275,7 @@ def find_line_id_between_buses(bus_id, temp_bus, net):
 def temporally_update_associated_line_id(matching_devices, temp_bus, net):
     if matching_devices is not None:
         for device in matching_devices:
-            new_line_id = find_line_id_between_buses(device.bus_id, temp_bus,net)
+            new_line_id = find_line_id_between_buses(device.bus_id, temp_bus, net)
             # update the device's associated line id
             device.associated_line_id = new_line_id
 
@@ -304,7 +323,7 @@ def simulate_faults_along_line(net, line_id, affected_devices, interval_km=0.25)
             # after adding the fault bus into the network, simulate a three-phase short circuit at the temporary bus
             sc.calc_sc(net, fault="3ph", bus=temp_bus, branch_results=True, return_all_currents=True)
             #change the parameters of the protection device
-            temporally_update_associated_line_id(matching_devices,temp_bus,net)
+            temporally_update_associated_line_id(matching_devices, temp_bus, net)
             for device in affected_devices:
 
                 # according to the line length to calcualte the distance the protection devices supposed to sense
@@ -353,7 +372,7 @@ def simulate_faults_along_line(net, line_id, affected_devices, interval_km=0.25)
                     }
                 # print(
                 #     f"Device {affected_devices[device].device_id} at Bus {affected_devices[device].bus_id} triggered: {zone_calculated}, Impedance: {impedance}")
-            recover_associated_line_id(matching_devices,saved_ids)
+            recover_associated_line_id(matching_devices, saved_ids)
             # Remove temporary buses and associated lines after analysis.
             net.line.drop(temp_line_part1, inplace=True)
             net.line.drop(temp_line_part2, inplace=True)
