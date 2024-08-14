@@ -86,15 +86,20 @@ class ProtectionDevice:
             # line_impedance = graph.get_edge_data(start_bus, next_bus)["r_ohm"]+1j **graph.get_edge_data(start_line_id, next_bus)["x_ohm"]
 
         line_value = list(graph.get_edge_data(start_bus, next_bus).values())[0]
+        first_line_impedance = line_value["r_ohm"] + 1j * line_value["x_ohm"]
         first_zone_line_impedance = (line_value["r_ohm"] + 1j * line_value["x_ohm"]) * 0.9
         associated_lines = [first_zone_line_impedance]
 
         # Traverse from the second bus and find subsequent lines
         previous_bus = start_bus
         current_bus = next_bus
+        second_step_reach_parallel_flag = False
         second_zone_line_impedance = 0
+        second_line_impedance = 0
         third_zone_line_impedance = 0
         current_depth_index = 1
+        parallel_line_pair = [0,1]
+        parallel_line_flag = True
         while current_depth_index < depth:
             min_weight = float('inf')
             current_depth_index += 1
@@ -102,20 +107,49 @@ class ProtectionDevice:
             # Get all connected lines to the current bus
             edges = graph.edges(current_bus, data=True)
 
-            for from_bus, to_bus, data in edges:
-                # line_resistance_0 = data["r_ohm"]
-                if to_bus != previous_bus:
-                    # choose the line which has the lowest weight and add it into the associated lines
-                    if data['weight'] < min_weight:
-                        min_weight = data['weight']
-                        next_bus = to_bus
-                        if current_depth_index == 2:
-                            second_zone_line_impedance = 0.9 * (
-                                    first_zone_line_impedance + data["r_ohm"] + 1j * data["x_ohm"])
-                        elif current_depth_index == 3:
-                            if second_zone_line_impedance is not None:
-                                third_zone_line_impedance = 0.9 * (
-                                        second_zone_line_impedance + data["r_ohm"] + 1j * data["x_ohm"])
+            if current_depth_index == 2:
+                for from_bus, to_bus, data in edges:
+                    if to_bus == previous_bus:
+                        continue
+
+                    # Check if there are parallel lines between from_bus and to_bus
+                    parallel_line_flag = len([e for e in edges if (e[0] == from_bus and e[1] == to_bus) or (e[0] == to_bus and e[1] == from_bus)]) > 1
+
+                    if parallel_line_flag:
+                        if data['weight']*0.5 < min_weight:
+                            second_step_reach_parallel_flag = True
+                            min_weight = data['weight']*0.5
+                            second_line_impedance = data["r_ohm"] + 1j * data["x_ohm"]
+                            second_zone_line_impedance = 0.9 * (first_line_impedance+second_line_impedance * 0.5)
+                            third_zone_line_impedance = 1.1 * (first_line_impedance+second_line_impedance)
+                            next_bus = to_bus
+                    else:
+                        if data['weight'] < min_weight:
+                            min_weight = data['weight']
+                            second_line_impedance = data["r_ohm"] + 1j * data["x_ohm"]
+                            second_zone_line_impedance = 0.9 * (first_line_impedance+second_line_impedance * 0.9)
+                            next_bus = to_bus
+
+            elif current_depth_index == 3:
+                if second_zone_line_impedance is not None and second_step_reach_parallel_flag is not True:
+                    for from_bus, to_bus, data in edges:
+                        if to_bus == previous_bus:
+                            continue
+
+                        # Check for parallel line again at this depth
+                        parallel_line_flag = len([e for e in edges if (e[0] == from_bus and e[1] == to_bus) or (
+                                    e[0] == to_bus and e[1] == from_bus)]) > 1
+
+                        if parallel_line_flag:
+                            if data['weight']*0.5 < min_weight:
+                                min_weight = data['weight']*0.5
+                                third_zone_line_impedance = 0.9 * (first_line_impedance+second_line_impedance * 0.9 + (data["r_ohm"] + 1j * data["x_ohm"]) * 0.9 * 0.9 * 0.5)
+                                next_bus = to_bus
+                        else:
+                            if data['weight'] < min_weight:
+                                min_weight = data['weight']
+                                third_zone_line_impedance = 0.9 * (first_line_impedance+second_line_impedance * 0.9 + (data["r_ohm"] + 1j * data["x_ohm"]) * 0.9 * 0.9 * 0.5)
+                                next_bus = to_bus
             previous_bus = current_bus
             current_bus = next_bus
 
@@ -127,29 +161,29 @@ class ProtectionDevice:
     def check_zone(self, impedance):
         """ Determine the protection zone based on impedance """
         # how to compare two complex numbers depends on our need
-        R_arc = 2.5  # the arc compensation (ohm) value for 110kv for R-setting
+        r_arc = 2.5  # the arc compensation (ohm) value for 110kv for R-setting
         impedance_point = Point(impedance.real, impedance.imag)
         zone1_polygon = Polygon(
             [(0, 0), (
                 -self.associated_zone_impedance[0].imag * math.tan(math.radians(30)),
                 self.associated_zone_impedance[0].imag),
-             (self.associated_zone_impedance[0].real + R_arc, self.associated_zone_impedance[0].imag), (
-                 self.associated_zone_impedance[0].real + R_arc,
-                 -(self.associated_zone_impedance[0].real + R_arc) * math.tan(math.radians(22)))])
+             (self.associated_zone_impedance[0].real + r_arc, self.associated_zone_impedance[0].imag), (
+                 self.associated_zone_impedance[0].real + r_arc,
+                 -(self.associated_zone_impedance[0].real + r_arc) * math.tan(math.radians(22)))])
         zone2_polygon = Polygon(
             [(0, 0), (
                 -self.associated_zone_impedance[1].imag * math.tan(math.radians(30)),
                 self.associated_zone_impedance[1].imag),
-             (self.associated_zone_impedance[1].real + R_arc, self.associated_zone_impedance[1].imag), (
-                 self.associated_zone_impedance[1].real + R_arc,
-                 -(self.associated_zone_impedance[1].real + R_arc) * math.tan(math.radians(22)))])
+             (self.associated_zone_impedance[1].real + r_arc, self.associated_zone_impedance[1].imag), (
+                 self.associated_zone_impedance[1].real + r_arc,
+                 -(self.associated_zone_impedance[1].real + r_arc) * math.tan(math.radians(22)))])
         zone3_polygon = Polygon(
             [(0, 0), (
                 -self.associated_zone_impedance[2].imag * math.tan(math.radians(30)),
                 self.associated_zone_impedance[2].imag),
-             (self.associated_zone_impedance[2].real + R_arc, self.associated_zone_impedance[2].imag), (
-                 self.associated_zone_impedance[2].real + R_arc,
-                 -(self.associated_zone_impedance[2].real + R_arc) * math.tan(math.radians(22)))])
+             (self.associated_zone_impedance[2].real + r_arc, self.associated_zone_impedance[2].imag), (
+                 self.associated_zone_impedance[2].real + r_arc,
+                 -(self.associated_zone_impedance[2].real + r_arc) * math.tan(math.radians(22)))])
 
         if zone1_polygon.contains(impedance_point) or zone1_polygon.touches(impedance_point):
             return "Zone 1"
@@ -161,7 +195,7 @@ class ProtectionDevice:
 
     def check_zone_with_mag_angle(self, magnitude, angle):
         """ Determine the protection zone based on impedance """
-        #how to compare two complex numbers depends on our need
+        # how to compare two complex numbers depends on our need
 
         impedance_point = Point(magnitude * math.cos(angle), magnitude * math.sin(angle))
         zone1_polygon = Polygon(
@@ -513,7 +547,7 @@ def calculate_impedance(net, device, from_bus, to_bus):
                 line_part2_value = graph.get_edge_data(1, to_bus)
                 line_part3_value = graph.get_edge_data(0, 1)
                 combined_impedance_r = sum(1 / (line_part1_value["r_ohm"] + 1e-12) + 1 / (
-                            line_part2_value["r_ohm"] + line_part3_value["r_ohm"] + 1e-12)) ** -1
+                        line_part2_value["r_ohm"] + line_part3_value["r_ohm"] + 1e-12)) ** -1
                 combined_impedance_x = sum(1 / (line_part1_value["x_ohm"] + 1e-12) + 1 / (
                         line_part2_value["x_ohm"] + line_part3_value["x_ohm"] + 1e-12)) ** -1
                 total_impedance += combined_impedance_r + 1j * combined_impedance_x
@@ -522,14 +556,13 @@ def calculate_impedance(net, device, from_bus, to_bus):
                 line_part2_value = graph.get_edge_data(0, to_bus)
                 line_part3_value = graph.get_edge_data(0, 1)
                 combined_impedance_r = sum(1 / (line_part1_value["r_ohm"] + 1e-12) + 1 / (
-                            line_part2_value["r_ohm"] + line_part3_value["r_ohm"] + 1e-12)) ** -1
+                        line_part2_value["r_ohm"] + line_part3_value["r_ohm"] + 1e-12)) ** -1
                 combined_impedance_x = sum(1 / (line_part1_value["x_ohm"] + 1e-12) + 1 / (
                         line_part2_value["x_ohm"] + line_part3_value["x_ohm"] + 1e-12)) ** -1
                 total_impedance += combined_impedance_r + 1j * combined_impedance_x
             else:
                 line_value = directed_graph.get_edge_data(u, v)
                 total_impedance += line_value["r_ohm"] + 1j * line_value["x_ohm"]
-
 
     except nx.NetworkXNoPath:
         print(f"No path available from bus {from_bus} to bus {to_bus}.")
