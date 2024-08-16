@@ -490,14 +490,6 @@ def calculate_impedance(net, device, from_bus, to_bus):
     """Calculate the impedance between two buses. Shortest distance"""
     graph = top.create_nxgraph(net, include_lines=True, include_impedances=True, calc_branch_impedances=True)
     initial_associated_line = net.line.loc[device.associated_line_id]
-    # # this applies to the case that the parameter of the proteciton device especially the associated line id is not
-    # changed, and it needs one extra input: the examied_line_id
-    # if examed_line_id == device.associated_line_id:
-    #     initial_from_bus = from_bus
-    #     initial_to_bus = to_bus
-    # else:
-    #     initial_from_bus = from_bus
-    #     initial_to_bus = initial_associated_line.from_bus if initial_from_bus != initial_associated_line.from_bus else initial_associated_line.to_bus
     initial_from_bus = from_bus
     initial_to_bus = initial_associated_line.from_bus if initial_from_bus != initial_associated_line.from_bus else initial_associated_line.to_bus
 
@@ -514,17 +506,21 @@ def calculate_impedance(net, device, from_bus, to_bus):
         # Get bus numbers connected to the external grid
         external_grid_buses = net.ext_grid['bus'].tolist()
 
-        if any(bus in path for bus in external_grid_buses if path.index(bus) != 0 and path.index(bus) != len(path) - 1):
-            print(f"Path bypasses one of the external grid buses. Device {device.device_id} should not be considered.")
-            return None
+        # Check if the path bypasses any external grid bus
+        for bus in external_grid_buses:
+            if bus in path and path.index(bus) != 0 and path.index(bus) != len(path) - 1:
+                print(
+                    f"Path bypasses one of the external grid buses. Device {device.device_id} should not be considered.")
+                return None
 
         path_bus_pairs = set(tuple(sorted([u, v])) for u, v in zip(path[:-1], path[1:]))
         # Identify all bus pairs with parallel lines
         parallel_lines = net.line[net.line.duplicated(subset=['from_bus', 'to_bus'], keep=False)]
         parallel_bus_pairs = set(
             tuple(sorted([row['from_bus'], row['to_bus']])) for _, row in parallel_lines.iterrows())
-        path_involves_segments_other_than_0_to_bus = len(path_bus_pairs.difference(sorted([0, to_bus]))) > 0
-        path_involves_segments_other_than_1_to_bus = len(path_bus_pairs.difference(sorted([1, to_bus]))) > 0
+        # right now the 0 and 1 is hard coded, it will be fixed later
+        path_involves_segments_other_than_0_to_bus = len(path_bus_pairs.difference({tuple(sorted([0, to_bus]))})) > 0
+        path_involves_segments_other_than_1_to_bus = len(path_bus_pairs.difference({tuple(sorted([1, to_bus]))})) > 0
         parallel_in_path = path_bus_pairs.intersection(parallel_bus_pairs)
         for u, v in zip(path[:-1], path[1:]):
             bus_pair = tuple(sorted([u, v]))
@@ -536,29 +532,27 @@ def calculate_impedance(net, device, from_bus, to_bus):
                     ]
 
                 # Calculate combined impedance of parallel lines
-                combined_impedance_r = sum(
-                    1 / (row['r_ohm_per_km'] + 1e-12) for _, row in parallel_lines_for_pair.iterrows()) ** -1
-                combined_impedance_x = sum(
-                    1 / (row['x_ohm_per_km'] + 1e-12) for _, row in parallel_lines_for_pair.iterrows()) ** -1
+                combined_impedance_r = directed_graph.get_edge_data(u, v)["r_ohm"] * 0.5
+                combined_impedance_x = directed_graph.get_edge_data(u, v)["x_ohm"] * 0.5
                 total_impedance += combined_impedance_r + 1j * combined_impedance_x
             # Case 3 Fault on Parallel Line
-            elif tuple(sorted([0, to_bus])) is bus_pair and path_involves_segments_other_than_0_to_bus:
-                line_part1_value = graph.get_edge_data(0, to_bus)
-                line_part2_value = graph.get_edge_data(1, to_bus)
-                line_part3_value = graph.get_edge_data(0, 1)
-                combined_impedance_r = sum(1 / (line_part1_value["r_ohm"] + 1e-12) + 1 / (
-                        line_part2_value["r_ohm"] + line_part3_value["r_ohm"] + 1e-12)) ** -1
-                combined_impedance_x = sum(1 / (line_part1_value["x_ohm"] + 1e-12) + 1 / (
-                        line_part2_value["x_ohm"] + line_part3_value["x_ohm"] + 1e-12)) ** -1
+            elif tuple(sorted([0, to_bus])) == bus_pair and path_involves_segments_other_than_0_to_bus:
+                line_part1_value = list(graph.get_edge_data(0, to_bus).values())[0]
+                line_part2_value = list(graph.get_edge_data(1, to_bus).values())[0]
+                line_part3_value = list(graph.get_edge_data(0, 1).values())[0]
+                combined_impedance_r = 1/(1 / (line_part1_value["r_ohm"] + 1e-12) + 1 / (
+                        line_part2_value["r_ohm"] + line_part3_value["r_ohm"] + 1e-12))
+                combined_impedance_x = 1/(1 / (line_part1_value["x_ohm"] + 1e-12) + 1 / (
+                        line_part2_value["x_ohm"] + line_part3_value["x_ohm"] + 1e-12))
                 total_impedance += combined_impedance_r + 1j * combined_impedance_x
-            elif tuple(sorted([1, to_bus])) is bus_pair and path_involves_segments_other_than_1_to_bus:
-                line_part1_value = graph.get_edge_data(1, to_bus)
-                line_part2_value = graph.get_edge_data(0, to_bus)
-                line_part3_value = graph.get_edge_data(0, 1)
-                combined_impedance_r = sum(1 / (line_part1_value["r_ohm"] + 1e-12) + 1 / (
-                        line_part2_value["r_ohm"] + line_part3_value["r_ohm"] + 1e-12)) ** -1
-                combined_impedance_x = sum(1 / (line_part1_value["x_ohm"] + 1e-12) + 1 / (
-                        line_part2_value["x_ohm"] + line_part3_value["x_ohm"] + 1e-12)) ** -1
+            elif tuple(sorted([1, to_bus])) == bus_pair and path_involves_segments_other_than_1_to_bus:
+                line_part1_value = list(graph.get_edge_data(1, to_bus).values())[0]
+                line_part2_value = list(graph.get_edge_data(0, to_bus).values())[0]
+                line_part3_value = list(graph.get_edge_data(0, 1).values())[0]
+                combined_impedance_r = 1/(1 / (line_part1_value["r_ohm"] + 1e-12) + 1 / (
+                        line_part2_value["r_ohm"] + line_part3_value["r_ohm"] + 1e-12))
+                combined_impedance_x = 1/(1 / (line_part1_value["x_ohm"] + 1e-12) + 1 / (
+                        line_part2_value["x_ohm"] + line_part3_value["x_ohm"] + 1e-12))
                 total_impedance += combined_impedance_r + 1j * combined_impedance_x
             else:
                 line_value = directed_graph.get_edge_data(u, v)
