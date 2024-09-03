@@ -85,33 +85,40 @@ class ProtectionDevice:
 
         line_value = list(graph.get_edge_data(start_bus, next_bus).values())[0]
         first_line_impedance = line_value["r_ohm"] + 1j * line_value["x_ohm"]
-        first_zone_line_impedance = (line_value["r_ohm"] + 1j * line_value["x_ohm"]) * 0.9
+        first_zone_line_impedance = first_line_impedance * 0.9
         associated_lines = [first_zone_line_impedance]
+
+        # Variables to track impedance at different depths
+        second_line_impedance = 0
+        second_zone_line_impedance = None
+        third_zone_line_impedance = None
+        second_depth_buses = []
+        current_depth_index = 1
 
         # Traverse from the second bus and find subsequent lines
         previous_bus = start_bus
         current_bus = next_bus
+
         second_step_reach_parallel_flag = False
-        second_zone_line_impedance = 0
-        second_line_impedance = 0
-        third_zone_line_impedance = 0
-        current_depth_index = 1
+
         parallel_line_pair = [0, 1]
         parallel_line_flag = True
         while current_depth_index < depth:
             min_weight = float('inf')
             current_depth_index += 1
-            # max_line_id = None
-            # Get all connected lines to the current bus
-            edges = graph.edges(current_bus, data=True)
 
             if current_depth_index == 2:
-                for from_bus, to_bus, data in edges:
+                depth_2_edges = graph.edges(current_bus, data=True)
+
+                for from_bus, to_bus, data in depth_2_edges:
                     if to_bus == previous_bus:
-                        continue
+                        continue  # Avoid going backward
+
+                    # Store all buses and impedances for depth 2
+                    second_depth_buses.append(to_bus)
 
                     # Check if there are parallel lines between from_bus and to_bus
-                    parallel_line_flag = len([e for e in edges if (e[0] == from_bus and e[1] == to_bus) or (
+                    parallel_line_flag = len([e for e in depth_2_edges if (e[0] == from_bus and e[1] == to_bus) or (
                                 e[0] == to_bus and e[1] == from_bus)]) > 1
 
                     if parallel_line_flag:
@@ -121,40 +128,41 @@ class ProtectionDevice:
                             second_line_impedance = data["r_ohm"] + 1j * data["x_ohm"]
                             second_zone_line_impedance = 0.9 * (first_line_impedance + second_line_impedance * 0.5)
                             third_zone_line_impedance = 1.1 * (first_line_impedance + second_line_impedance)
-                            next_bus = to_bus
+                            # next_bus = to_bus
                     else:
                         if data['weight'] < min_weight:
                             min_weight = data['weight']
                             second_line_impedance = data["r_ohm"] + 1j * data["x_ohm"]
                             second_zone_line_impedance = 0.9 * (first_line_impedance + second_line_impedance * 0.9)
-                            next_bus = to_bus
+                            # next_bus = to_bus
 
             elif current_depth_index == 3:
                 if second_zone_line_impedance is not None and second_step_reach_parallel_flag is not True:
-                    for from_bus, to_bus, data in edges:
-                        if to_bus == previous_bus:
-                            continue
+                    for bus_index in second_depth_buses:
+                        depth_3_edges = graph.edges(bus_index, data=True)
+                        for from_bus, to_bus, data in depth_3_edges:
+                            if to_bus == previous_bus:
+                                continue
 
-                        # Check for parallel line again at this depth
-                        parallel_line_flag = len([e for e in edges if (e[0] == from_bus and e[1] == to_bus) or (
-                                e[0] == to_bus and e[1] == from_bus)]) > 1
+                            # Check for parallel line again at this depth
+                            parallel_line_flag = len([e for e in depth_3_edges if (e[0] == from_bus and e[1] == to_bus) or (
+                                    e[0] == to_bus and e[1] == from_bus)]) > 1
 
-                        if parallel_line_flag:
-                            if data['weight'] * 0.5 < min_weight:
-                                min_weight = data['weight'] * 0.5
-                                third_zone_line_impedance = 0.9 * (
-                                            first_line_impedance + second_line_impedance * 0.9 + (
-                                                data["r_ohm"] + 1j * data["x_ohm"]) * 0.9 * 0.9 * 0.5)
-                                next_bus = to_bus
-                        else:
-                            if data['weight'] < min_weight:
-                                min_weight = data['weight']
-                                third_zone_line_impedance = 0.9 * (
-                                            first_line_impedance + second_line_impedance * 0.9 + (
-                                                data["r_ohm"] + 1j * data["x_ohm"]) * 0.9 * 0.9)
-                                next_bus = to_bus
+                            if parallel_line_flag:
+                                if data['weight'] * 0.5 < min_weight:
+                                    min_weight = data['weight'] * 0.5
+                                    third_zone_line_impedance = 0.9 * (
+                                                first_line_impedance + second_line_impedance * 0.9 + (
+                                                    data["r_ohm"] + 1j * data["x_ohm"]) * 0.9 * 0.9 * 0.5)
+                            else:
+                                if data['weight'] < min_weight:
+                                    min_weight = data['weight']
+                                    third_zone_line_impedance = 0.9 * (
+                                                first_line_impedance + second_line_impedance * 0.9 + (
+                                                    data["r_ohm"] + 1j * data["x_ohm"]) * 0.9 * 0.9)
+            # else:
+            #     print("Please implement a new zone-grading algorithm.")
             previous_bus = current_bus
-            current_bus = next_bus
 
         associated_lines.append(second_zone_line_impedance)
         associated_lines.append(third_zone_line_impedance)
@@ -286,7 +294,7 @@ protection_df = pd.DataFrame(protection_data)
 # print(protection_df)
 
 # Save the DataFrame to an Excel file
-output_file = 'protection_zones_revise2.xlsx'
+output_file = 'protection_zones_revise_0903_wrong.xlsx'
 protection_df.to_excel(output_file, index=False)
 
-print(f"Data saved to {output_file}")
+#print(f"Data saved to {output_file}")
