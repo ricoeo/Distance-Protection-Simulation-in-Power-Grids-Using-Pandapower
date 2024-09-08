@@ -207,29 +207,29 @@ class ProtectionDevice:
     def check_zone_with_mag_angle(self, magnitude, angle):
         """ Determine the protection zone based on impedance """
         # how to compare two complex numbers depends on our need
-
+        r_arc = 2.5  # the arc compensation (ohm) value for 110kv for R-setting
         impedance_point = Point(magnitude * math.cos(angle), magnitude * math.sin(angle))
         zone1_polygon = Polygon(
             [(0, 0), (
                 -self.associated_zone_impedance[0].imag * math.tan(math.radians(30)),
                 self.associated_zone_impedance[0].imag),
-             (self.associated_zone_impedance[0].real, self.associated_zone_impedance[0].imag), (
-                 self.associated_zone_impedance[0].real,
-                 -self.associated_zone_impedance[0].real * math.tan(math.radians(22)))])
+             (self.associated_zone_impedance[0].real + r_arc, self.associated_zone_impedance[0].imag), (
+                 self.associated_zone_impedance[0].real + r_arc,
+                 -(self.associated_zone_impedance[0].real + r_arc) * math.tan(math.radians(22)))])
         zone2_polygon = Polygon(
             [(0, 0), (
                 -self.associated_zone_impedance[1].imag * math.tan(math.radians(30)),
                 self.associated_zone_impedance[1].imag),
-             (self.associated_zone_impedance[1].real, self.associated_zone_impedance[1].imag), (
-                 self.associated_zone_impedance[1].real,
-                 -self.associated_zone_impedance[1].real * math.tan(math.radians(22)))])
+             (self.associated_zone_impedance[1].real + r_arc, self.associated_zone_impedance[1].imag), (
+                 self.associated_zone_impedance[1].real + r_arc,
+                 -(self.associated_zone_impedance[1].real + r_arc) * math.tan(math.radians(22)))])
         zone3_polygon = Polygon(
             [(0, 0), (
                 -self.associated_zone_impedance[2].imag * math.tan(math.radians(30)),
                 self.associated_zone_impedance[2].imag),
-             (self.associated_zone_impedance[2].real, self.associated_zone_impedance[2].imag), (
-                 self.associated_zone_impedance[2].real,
-                 -self.associated_zone_impedance[2].real * math.tan(math.radians(22)))])
+             (self.associated_zone_impedance[2].real + r_arc, self.associated_zone_impedance[2].imag), (
+                 self.associated_zone_impedance[2].real + r_arc,
+                 -(self.associated_zone_impedance[2].real + r_arc) * math.tan(math.radians(22)))])
 
         if zone1_polygon.contains(impedance_point) or zone1_polygon.touches(impedance_point):
             return "Zone 1"
