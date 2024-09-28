@@ -50,17 +50,18 @@ for idx in load_data.index:
 for idx in external_grid_data.index:
     pp.create_ext_grid(net, bus=external_grid_data.at[idx, "bus"], vm_pu=external_grid_data.at[idx, "vm_pu"],
                        va_degree=external_grid_data.at[idx, "va_degree"], name=external_grid_data.at[idx, "name"],
-                       s_sc_max_mva=5e9, rx_max=0.1)
+                       s_sc_max_mva=5e1, rx_max=0.1)
 
 # generators
 for idx in wind_gen_data.index:
-    if idx == 0:
-        continue
+    # if idx == 0:
+    #     continue
     pp.create_sgen(net, bus=wind_gen_data.at[idx, "bus"], p_mw=wind_gen_data.at[idx, "p_mw"],
                    q_mvar=wind_gen_data.at[idx, "q_mvar"], sn_mva=wind_gen_data.at[idx, "sn_mva"],
-                   name=wind_gen_data.at[idx, "name"], k=1.2)
+                   name=wind_gen_data.at[idx, "name"], k=1.2, in_service=True)
 
 print(net)
+
 
 class ProtectionDevice:
     def __init__(self, device_id, bus_id, first_line_id, replaced_line_id, net, depth=3):
@@ -215,7 +216,8 @@ class ProtectionDevice:
         """ Determine the protection zone based on impedance """
         # how to compare two complex numbers depends on our need
         r_arc = 2.5  # the arc compensation (ohm) value for 110kv for R-setting
-        impedance_point = Point(magnitude * math.cos(angle * math.pi / 180), magnitude * math.sin(angle * math.pi / 180))
+        impedance_point = Point(magnitude * math.cos(angle * math.pi / 180),
+                                magnitude * math.sin(angle * math.pi / 180))
         zone1_polygon = Polygon(
             [(0, 0), (
                 -self.associated_zone_impedance[0].imag * math.tan(math.radians(30)),
@@ -346,9 +348,11 @@ def recover_associated_line_id(matching_devices, saved_associated_line_ids):
 def simulate_faults_along_line(net, line_id, affected_devices, interval_km=0.25):
     """Simulate faults along a line by adding temporary buses at specified intervals."""
     device_data_dict = []
+    # fault on double line case is more complex
+    fault_line_on_doubleline_flag = line_id in [0, 1]
     # Make original line out of service
     line = net.line.loc[line_id]
-    line['in_service'] = False
+    net.line.at[line_id, 'in_service'] = False
     # evenly distribute the faults in the line
     line_length = line.length_km
     num_faults = int(line_length / interval_km) - 1
@@ -382,7 +386,7 @@ def simulate_faults_along_line(net, line_id, affected_devices, interval_km=0.25)
             for device in affected_devices:
                 # according to the line length to calcualte the distance the protection devices supposed to sense
                 impedance = calculate_impedance(net, affected_devices[device], affected_devices[device].bus_id,
-                                                temp_bus, line_id)
+                                                temp_bus, fault_line_on_doubleline_flag)
                 if impedance is None:
                     # print(
                     #     f"Impedance calculation returned None for device {affected_devices[device].device_id} at bus {affected_devices[device].bus_id}. Skipping this fault scenario.")
@@ -435,6 +439,7 @@ def simulate_faults_along_line(net, line_id, affected_devices, interval_km=0.25)
 
     return device_data_dict
 
+
 # this is the short version, for every line four fault locations are analysed (if applicable)
 # def simulate_faults_along_line(net, line_id, affected_devices, interval_km=0.25):
 #     """Simulate faults along a line by adding temporary buses at specified intervals."""
@@ -450,9 +455,9 @@ def simulate_faults_along_line(net, line_id, affected_devices, interval_km=0.25)
 #     matching_devices, saved_ids = filter_and_save_devices_by_line_id(affected_devices, line_id)
 #
 #     # Determine which fault locations to use
-#     if num_faults > 4:
+#     if num_faults > 2:
 #         fault_locations = [interval_km * i for i in range(1, num_faults + 1)]
-#         selected_fault_locations = fault_locations[:2] + fault_locations[-2:]
+#         selected_fault_locations = fault_locations[:1] + fault_locations[-1:]
 #     else:
 #         selected_fault_locations = [interval_km * i for i in range(1, num_faults + 1)]
 #
@@ -502,17 +507,28 @@ def simulate_faults_along_line(net, line_id, affected_devices, interval_km=0.25)
 #             angle_sensed = va_degree - ikss_degree
 #             zone_sensed = affected_devices[device].check_zone_with_mag_angle(r_sensed, angle_sensed)
 #
+#             # device_data = {
+#             #     'Device ID': affected_devices[device].device_id,
+#             #     'Fault_line_id': line_id,
+#             #     'Referenced_bus': line.from_bus,
+#             #     'Distance_from_bus': fault_location,
+#             #     'Impedance_calculated': impedance,
+#             #     'zone_calculated': zone_calculated,
+#             #     'vm': vm_pu * HV,
+#             #     'ikss': ikss_ka * 1e3,
+#             #     'r_sensed': r_sensed,
+#             #     'angle_sensed': angle_sensed,
+#             #     'zone_sensed': zone_sensed,
+#             #     'same_zone_detection': zone_calculated == zone_sensed
+#             # }
 #             device_data = {
 #                 'Device ID': affected_devices[device].device_id,
 #                 'Fault_line_id': line_id,
 #                 'Referenced_bus': line.from_bus,
 #                 'Distance_from_bus': fault_location,
-#                 'Impedance_calculated': impedance,
 #                 'zone_calculated': zone_calculated,
 #                 'vm': vm_pu * HV,
 #                 'ikss': ikss_ka * 1e3,
-#                 'r_sensed': r_sensed,
-#                 'angle_sensed': angle_sensed,
 #                 'zone_sensed': zone_sensed,
 #                 'same_zone_detection': zone_calculated == zone_sensed
 #             }
@@ -523,6 +539,112 @@ def simulate_faults_along_line(net, line_id, affected_devices, interval_km=0.25)
 #         net.line.drop(temp_line_part1, inplace=True)
 #         net.line.drop(temp_line_part2, inplace=True)
 #         net.bus.drop(temp_bus, inplace=True)
+#
+#     return device_data_dict
+
+# another short version to anaylse fault happening position
+# def simulate_faults_along_line(net, line_id, affected_devices, interval_km=0.25):
+#     """Simulate faults along a line by adding temporary buses at specified intervals."""
+#     device_data_dict = []
+#     first_mismatch = None
+#     last_mismatch = None
+#     # fault on double line case is more complex
+#     fault_line_on_doubleline_flag = line_id in [0, 1]
+#     # Make original line out of service
+#     line = net.line.loc[line_id]
+#     line['in_service'] = False
+#     # evenly distribute the faults in the line
+#     line_length = line.length_km
+#     num_faults = int(line_length / interval_km) - 1
+#     # temporally change some parameters of the protection devices due to the fault for simple calculation
+#     #matching_devices = list(filter(lambda device: device.associated_line_id == line_id, affected_devices))
+#     matching_devices, saved_ids = filter_and_save_devices_by_line_id(affected_devices, line_id)
+#     # if the sensed results are different from the calculated results, it is recorded
+#     # sense_wrong_dict = {}
+#     if num_faults > 0:
+#
+#         fault_locations = [interval_km * i for i in range(1, num_faults)]
+#         for device in affected_devices:
+#             for fault_location in fault_locations:
+#                 # Create a temporary bus at fault location
+#                 temp_bus = pp.create_bus(net, vn_kv=HV, type="n", name="fault_bus")
+#                 # Split the line at the fault location,copy all the other parameters of the original line to the new line
+#                 temp_line_part1 = pp.create_line_from_parameters(net, from_bus=line.from_bus, to_bus=temp_bus,
+#                                                                  length_km=fault_location,
+#                                                                  **{attr: getattr(line, attr) for attr in line_data.columns
+#                                                                     if attr not in ['from_bus', 'to_bus', 'length_km',
+#                                                                                     'name']})
+#                 temp_line_part2 = pp.create_line_from_parameters(net, from_bus=temp_bus, to_bus=line.to_bus,
+#                                                                  length_km=line_length - fault_location,
+#                                                                  **{attr: getattr(line, attr) for attr in line_data.columns
+#                                                                     if attr not in ['from_bus', 'to_bus', 'length_km',
+#                                                                                     'name']})
+#                 # after adding the fault bus into the network, simulate a three-phase short circuit at the temporary bus
+#                 sc.calc_sc(net, fault="3ph", bus=temp_bus, branch_results=True, return_all_currents=True)
+#                 #change the parameters of the protection device
+#                 temporally_update_associated_line_id(matching_devices, temp_bus, net)
+#
+#                 # according to the line length to calcualte the distance the protection devices supposed to sense
+#                 impedance = calculate_impedance(net, affected_devices[device], affected_devices[device].bus_id,
+#                                                 temp_bus, fault_line_on_doubleline_flag)
+#                 if impedance is None:
+#                     # print(
+#                     #     f"Impedance calculation returned None for device {affected_devices[device].device_id} at bus {affected_devices[device].bus_id}. Skipping this fault scenario.")
+#                     continue  # Skip to the next fault scenario
+#                 zone_calculated = affected_devices[device].check_zone(impedance)
+#                 # Get the impedance at the protection device through the line results
+#                 if affected_devices[device].bus_id == net.line.loc[affected_devices[device].associated_line_id][
+#                     "from_bus"]:
+#                     vm_pu = net.res_line_sc.loc[affected_devices[device].associated_line_id]["vm_from_pu"].item()
+#                     ikss_ka = net.res_line_sc.loc[affected_devices[device].associated_line_id]["ikss_from_ka"].item()
+#                     va_degree = net.res_line_sc.loc[affected_devices[device].associated_line_id][
+#                         "va_from_degree"].item()
+#                     ikss_degree = net.res_line_sc.loc[affected_devices[device].associated_line_id][
+#                         "ikss_from_degree"].item()
+#                 elif affected_devices[device].bus_id == net.line.loc[affected_devices[device].associated_line_id][
+#                     "to_bus"]:
+#                     vm_pu = net.res_line_sc.loc[affected_devices[device].associated_line_id]["vm_to_pu"].item()
+#                     ikss_ka = net.res_line_sc.loc[affected_devices[device].associated_line_id]["ikss_to_ka"].item()
+#                     va_degree = net.res_line_sc.loc[affected_devices[device].associated_line_id]["va_to_degree"].item()
+#                     ikss_degree = net.res_line_sc.loc[affected_devices[device].associated_line_id][
+#                         "ikss_to_degree"].item()
+#                 else:
+#                     print("the line result is not existed")
+#                 # calcualte the magnitude and the angle of the impedance
+#                 r_sensed = vm_pu * HV * 1e-3 / ikss_ka
+#                 angle_sensed = va_degree - ikss_degree
+#                 zone_sensed = affected_devices[device].check_zone_with_mag_angle(r_sensed, angle_sensed)
+#
+#                 # Check if there is a mismatch in the zone detection
+#                 if zone_calculated != zone_sensed:
+#                     device_data = {
+#                         'Device ID': affected_devices[device].device_id,
+#                         'Fault_line_id': line_id,
+#                         'Referenced_bus': line.from_bus,
+#                         'Distance_from_bus': fault_location,
+#                         'zone_calculated': zone_calculated,
+#                         'vm': vm_pu * HV,
+#                         'ikss': ikss_ka * 1e3,
+#                         'zone_sensed': zone_sensed,
+#                         'same_zone_detection': zone_calculated == zone_sensed
+#                     }
+#
+#                     # Record the first mismatch
+#                     if first_mismatch is None:
+#                         first_mismatch = device_data
+#                     # Always update the last mismatch
+#                     last_mismatch = device_data
+#
+#                 recover_associated_line_id(matching_devices, saved_ids)
+#                 # Remove temporary buses and associated lines after analysis.
+#                 net.line.drop(temp_line_part1, inplace=True)
+#                 net.line.drop(temp_line_part2, inplace=True)
+#                 net.bus.drop(temp_bus, inplace=True)
+#             # Add the first and last mismatch data (if they exist)
+#             if first_mismatch:
+#                 device_data_dict.append(first_mismatch)
+#             if last_mismatch and last_mismatch != first_mismatch:
+#                 device_data_dict.append(last_mismatch)
 #
 #     return device_data_dict
 
@@ -564,7 +686,7 @@ def convert_to_directed_old(g_undirected, initial_direction):
     return g_directed
 
 
-def convert_to_directed(g_undirected, initial_direction):
+def convert_to_directed(g_undirected, initial_direction, fault_bus, fault_line_on_doubleline_flag):
     g_directed = nx.DiGraph()  # Initialize a directed graph
     keys_to_extract = ['weight', 'r_ohm', 'x_ohm']
 
@@ -582,11 +704,18 @@ def convert_to_directed(g_undirected, initial_direction):
         else:
             if g_directed.has_edge(initial_direction[0], neighbor):
                 g_directed.remove_edge(initial_direction[0], neighbor)
+    if fault_line_on_doubleline_flag:
+        if initial_direction == (0, 1):
+            if g_directed.has_edge(1, fault_bus):
+                g_directed.remove_edge(1, fault_bus)
+        elif initial_direction == (1, 0):
+            if g_directed.has_edge(0, fault_bus):
+                g_directed.remove_edge(0, fault_bus)
 
     return g_directed
 
 
-def calculate_impedance(net, device, from_bus, to_bus, fault_line_id):
+def calculate_impedance(net, device, from_bus, to_bus, fault_line_on_doubleline_flag):
     """Calculate the impedance between two buses. Shortest distance"""
     graph = top.create_nxgraph(net, include_lines=True, include_impedances=True, calc_branch_impedances=True)
     initial_associated_line = net.line.loc[device.associated_line_id]
@@ -595,7 +724,7 @@ def calculate_impedance(net, device, from_bus, to_bus, fault_line_id):
 
     # Set initial direction based on device's associated line
     initial_direction = (initial_from_bus, initial_to_bus)
-    directed_graph = convert_to_directed(graph, initial_direction)
+    directed_graph = convert_to_directed(graph, initial_direction, to_bus, fault_line_on_doubleline_flag)
 
     total_impedance = 0
     try:
@@ -636,7 +765,7 @@ def calculate_impedance(net, device, from_bus, to_bus, fault_line_id):
                 combined_impedance_x = directed_graph.get_edge_data(u, v)["x_ohm"] * 0.5
                 total_impedance += combined_impedance_r + 1j * combined_impedance_x
             # Case 3 Fault on Parallel Line
-            elif fault_line_id in [0, 1] and tuple(
+            elif fault_line_on_doubleline_flag and tuple(
                     sorted([0, to_bus])) == bus_pair and path_involves_segments_other_than_0_to_bus:
                 line_part1_value = list(graph.get_edge_data(0, to_bus).values())[0]
                 line_part2_value = list(graph.get_edge_data(1, to_bus).values())[0]
@@ -646,7 +775,7 @@ def calculate_impedance(net, device, from_bus, to_bus, fault_line_id):
                 combined_impedance_x = 1 / (1 / (line_part1_value["x_ohm"] + 1e-12) + 1 / (
                         line_part2_value["x_ohm"] + line_part3_value["x_ohm"] + 1e-12))
                 total_impedance += combined_impedance_r + 1j * combined_impedance_x
-            elif fault_line_id in [0, 1] and tuple(
+            elif fault_line_on_doubleline_flag and tuple(
                     sorted([1, to_bus])) == bus_pair and path_involves_segments_other_than_1_to_bus:
                 line_part1_value = list(graph.get_edge_data(1, to_bus).values())[0]
                 line_part2_value = list(graph.get_edge_data(0, to_bus).values())[0]
@@ -686,7 +815,7 @@ for line_id in net.line.index:
 
 # Convert the list of dictionaries into a DataFrame
 protection_df = pd.DataFrame(protection_data)
-
+# output_file = 'fault_detection_check_without_gen.xlsx'
 # Save the DataFrame to an Excel file
-output_file = 'fault_detection_check_with_sc_sv_without_sgen0.xlsx'
+output_file = 'fault_detection_check_with_sc_sv_small_exgrid.xlsx'
 protection_df.to_excel(output_file, index=False)
