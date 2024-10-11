@@ -6,6 +6,10 @@ from shapely.geometry import Point
 from shapely.geometry.polygon import Polygon
 import math
 import pandapower.shortcircuit as sc
+import warnings
+warnings.filterwarnings("ignore")
+import logging
+logging.basicConfig(level=logging.ERROR)
 
 # define some constant parameters
 HV = 110e3  # High Voltage side in volts
@@ -496,7 +500,7 @@ def calculate_impedance(net, device, from_bus, to_bus, fault_line_on_doubleline_
                 total_impedance += line_value["r_ohm"] + 1j * line_value["x_ohm"]
 
     except nx.NetworkXNoPath:
-        print(f"No path available from bus {from_bus} to bus {to_bus}.")
+        # print(f"No path available from bus {from_bus} to bus {to_bus}.")
         total_impedance = None  # Indicate that no path exists.
     return total_impedance
 

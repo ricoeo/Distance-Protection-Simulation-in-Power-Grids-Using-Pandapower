@@ -33,6 +33,3 @@ protection_df.to_excel(output_file, index=False)
 
 # Print a confirmation message
 print(f"Protection zone data saved to {output_file}")
-
-
-
