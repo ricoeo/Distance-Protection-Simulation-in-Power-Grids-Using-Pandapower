@@ -18,5 +18,5 @@ protection_df_with_gen = pd.DataFrame(protection_data_with_gen)
 protection_df_without_gen = pd.DataFrame(protection_data_without_gen)
 
 # write to Excel file
-protection_df_with_gen.to_excel('fault_detection_check_sc_sv.xlsx', index=False)
-protection_df_without_gen.to_excel('protection_df_without_gen_sc_sv.xlsx', index=False)
+protection_df_with_gen.to_excel('fault_detection_check_revised.xlsx', index=False)
+protection_df_without_gen.to_excel('protection_df_without_gen_revised.xlsx', index=False)
