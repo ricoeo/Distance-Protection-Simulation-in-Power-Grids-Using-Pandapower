@@ -61,7 +61,7 @@ def create_network(excel_file):
         #     continue
         pp.create_sgen(net, bus=wind_gen_data.at[idx, "bus"], p_mw=wind_gen_data.at[idx, "p_mw"],
                        q_mvar=wind_gen_data.at[idx, "q_mvar"], sn_mva=wind_gen_data.at[idx, "sn_mva"],
-                       name=wind_gen_data.at[idx, "name"], k=1.2)
+                       name=wind_gen_data.at[idx, "name"], generator_type='current_source', k=1.2)
 
     print(net)
     return net
@@ -151,7 +151,7 @@ def create_network_withoutparallelline(excel_file):
     for idx in external_grid_data.index:
         pp.create_ext_grid(net, bus=external_grid_data.at[idx, "bus"], vm_pu=external_grid_data.at[idx, "vm_pu"],
                            va_degree=external_grid_data.at[idx, "va_degree"], name=external_grid_data.at[idx, "name"],
-                           s_sc_max_mva=5e9, rx_max=0.1)
+                           s_sc_max_mva=5e2, rx_max=0.1)
 
     # generators
     for idx in wind_gen_data.index:
@@ -172,6 +172,7 @@ class ProtectionDevice:
         self.replaced_line_id = replaced_line_id
         self.net = net
         self.associated_zone_impedance = self.find_associated_lines(first_line_id, depth)
+        self.reference_zone_impedance = self.associated_zone_impedance
         # test different r_arc effect
         self.r_arc = 2.5
 
@@ -319,6 +320,41 @@ class ProtectionDevice:
         elif zone3_polygon.contains(impedance_point) or zone3_polygon.touches(impedance_point):
             return "Zone 3"
         return "Out of Zone"
+    
+    def check_zone_ref(self, impedance):
+        """ Determine the protection zone based on impedance """
+        # how to compare two complex numbers depends on our need
+        # r_arc = 2.5  # the arc compensation (ohm) value for 110kv for R-setting
+        impedance_point = Point(impedance.real, impedance.imag)
+        zone1_polygon = Polygon(
+            [(0, 0), (
+                -self.reference_zone_impedance[0].imag * math.tan(math.radians(30)),
+                self.reference_zone_impedance[0].imag),
+             (self.reference_zone_impedance[0].real + self.r_arc, self.reference_zone_impedance[0].imag), (
+                 self.reference_zone_impedance[0].real + self.r_arc,
+                 -(self.reference_zone_impedance[0].real + self.r_arc) * math.tan(math.radians(22)))])
+        zone2_polygon = Polygon(
+            [(0, 0), (
+                -self.reference_zone_impedance[1].imag * math.tan(math.radians(30)),
+                self.reference_zone_impedance[1].imag),
+             (self.reference_zone_impedance[1].real + self.r_arc, self.reference_zone_impedance[1].imag), (
+                 self.reference_zone_impedance[1].real + self.r_arc,
+                 -(self.reference_zone_impedance[1].real + self.r_arc) * math.tan(math.radians(22)))])
+        zone3_polygon = Polygon(
+            [(0, 0), (
+                -self.reference_zone_impedance[2].imag * math.tan(math.radians(30)),
+                self.reference_zone_impedance[2].imag),
+             (self.reference_zone_impedance[2].real + self.r_arc, self.reference_zone_impedance[2].imag), (
+                 self.reference_zone_impedance[2].real + self.r_arc,
+                 -(self.reference_zone_impedance[2].real + self.r_arc) * math.tan(math.radians(22)))])
+
+        if zone1_polygon.contains(impedance_point) or zone1_polygon.touches(impedance_point):
+            return "Zone 1"
+        elif zone2_polygon.contains(impedance_point) or zone2_polygon.touches(impedance_point):
+            return "Zone 2"
+        elif zone3_polygon.contains(impedance_point) or zone3_polygon.touches(impedance_point):
+            return "Zone 3"
+        return "Out of Zone"    
 
     def check_zone_with_mag_angle(self, magnitude, angle):
         """ Determine the protection zone based on impedance """
@@ -624,7 +660,7 @@ def simulate_faults_along_line(net, line_id, affected_devices, interval_km=0.25)
                     # print(
                     #     f"Impedance calculation returned None for device {affected_devices[device].device_id} at bus {affected_devices[device].bus_id}. Skipping this fault scenario.")
                     continue  # Skip to the next fault scenario
-                zone_calculated = affected_devices[device].check_zone(impedance)
+                zone_calculated = affected_devices[device].check_zone_ref(impedance)
                 # Get the impedance at the protection device through the line results
                 if affected_devices[device].bus_id == net.line.loc[affected_devices[device].associated_line_id][
                     "from_bus"]:
