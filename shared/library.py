@@ -159,7 +159,7 @@ def create_network_withoutparallelline(excel_file):
         #     continue
         pp.create_sgen(net, bus=wind_gen_data.at[idx, "bus"], p_mw=wind_gen_data.at[idx, "p_mw"],
                        q_mvar=wind_gen_data.at[idx, "q_mvar"], sn_mva=wind_gen_data.at[idx, "sn_mva"],
-                       name=wind_gen_data.at[idx, "name"], k=1.2)
+                       name=wind_gen_data.at[idx, "name"],generator_type='current_source', k=1.2)
 
     print(net)
     return net
