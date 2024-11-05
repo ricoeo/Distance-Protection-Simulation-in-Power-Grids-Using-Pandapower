@@ -94,7 +94,7 @@ def create_current_dict(net):
             voltage_angle_from = net.res_line_sc.loc[idx, "va_from_degree"]
 
             # get current angle
-            current_angle_to = net.res_line_sc.loc[idx, "ikss_to_degree"]    # Convert to degrees if needed
+            current_angle_to = net.res_line_sc.loc[idx, "ikss_to_degree"]   
             
             direction = (from_bus, to_bus)
             # Determine the direction of current flow
@@ -216,12 +216,14 @@ def my_simple_plot(net, respect_switches=False, line_width=1.0, bus_size=1.0, ex
     return ax
 
 def plot_short_circuit_results(net):
+    if net.res_bus_sc.empty or net.res_line_sc.empty:
+        raise ValueError("Short circuit results are missing. Please run the short circuit simulation before plotting.")
     voltage_dict = create_voltage_dict(net)
     current_dict = create_current_dict(net)
     
     # Create color maps
     voltage_cmap = plt.get_cmap("Blues")  # Light blue to dark blue
-    current_cmap = plt.get_cmap("cividis")  # Light yellow to dark yellow
+    # current_cmap = plt.get_cmap("cividis")  # Light yellow to dark yellow, not used anymore
 
     # Normalize voltage data for color mapping
     min_voltage = min(voltage_dict.values())
@@ -241,12 +243,11 @@ def plot_short_circuit_results(net):
     for bus_id, voltage in voltage_dict.items():
         coords = net.bus_geodata.loc[bus_id]
         color = voltage_cmap(voltage_norm(voltage))
-        print(color)
         ax.scatter(coords.x, coords.y, color=color, edgecolor='black', s=100, 
                 label=f'Bus {bus_id}: {voltage:.2f} pu', zorder=5) 
         
     # Plot current magnitude and direction
-    for line_id, info in current_dict.items():
+    for _, info in current_dict.items():
         direction = info['direction']
         from_bus, to_bus = direction
 
