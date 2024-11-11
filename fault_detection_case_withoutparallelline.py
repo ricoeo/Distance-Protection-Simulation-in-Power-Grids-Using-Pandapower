@@ -10,6 +10,7 @@ net = create_network_withoutparallelline(excel_file)
 Protection_devices = setup_protection_zones(net, excel_file)
 
 # some changed have been done in the function calculate_impedance and convert_to_directed
+# the hard code problem of fault_line_on_doubleline_flag si fixed but take care the function converted to directed, inside the 0, 1 is still hard code, but it is enough to cope with current network if there are no more parallel line introduced
 protection_data= simulate_faults_for_all_lines(net, Protection_devices)
 
 # Convert the list of dictionaries into a DataFrame

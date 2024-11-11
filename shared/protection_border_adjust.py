@@ -1,4 +1,4 @@
-import numpy as np
+import pandas as pd
 import math
 
 def compute_sensed_impedance(r,a):
@@ -170,3 +170,19 @@ def adjust_protection_zone_with_measurement_data(measurement_data, protection_de
         adjust_zone[device] = adjust_zone_boundaries(measurement_data[measurement_data["Device ID"] == device], protection_devices[device])
 
     return adjust_zone
+
+def adjust_protection_zone_with_external_parameters(excel, protection_devices):
+    # in case the excel file has empty entries, it is easier to input an exisitng initialized protection device list
+    external_parameters = pd.read_excel(excel)
+    
+    for device in protection_devices:
+        extern_list = external_parameters.loc[device]
+        extern_associated_zone_impedance = [
+                complex(extern_list['RE_1'], extern_list['X_1']),
+                complex(extern_list['RE_2'], extern_list['X_2']),
+                complex(extern_list['RE_3'], extern_list['X_3'])
+        ]
+        # Update the protection device's associated zone impedance\
+        protection_devices[device].associated_zone_impedance = extern_associated_zone_impedance
+    
+    return protection_devices
