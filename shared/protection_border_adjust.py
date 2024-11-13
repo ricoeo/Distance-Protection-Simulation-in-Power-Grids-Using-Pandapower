@@ -95,10 +95,16 @@ def finalize_boundaries(boundary_selection_option, original_boundaries):
 def adjust_zone_boundaries(device_data, protection_device, initial_step=0.1, max_iterations=100):
     # Get the initial zone boundaries
     original_boundaries = [z.imag for z in protection_device.associated_zone_impedance]
+    
     # Store previously tested boundaries and their misjudgments for each zone
     boundary_iter_history = {i: {} for i in range(len(original_boundaries))}
     boundary_selection_option = {i: {} for i in range(len(original_boundaries))}
+    
     for zone_index in range(len(original_boundaries)):
+        # Skip if the boundary is None, 0, or 0j as no adjustment is needed
+        if original_boundaries[zone_index] is None or original_boundaries[zone_index] == 0 or original_boundaries[zone_index] == 0j:
+            continue
+        
         boundaries = original_boundaries[:]
         current_boundary = boundaries[zone_index]
         initial_direction = None
@@ -120,18 +126,20 @@ def adjust_zone_boundaries(device_data, protection_device, initial_step=0.1, max
         else:
             initial_direction = -1  # Downwards adjustment
             current_boundary = boundary_with_disturbance_down
-        #store
+        
+        #store initial misjudgment data
         boundary_iter_history[zone_index][original_boundaries[zone_index]] = original_misjudgement[zone_index]
         boundary_iter_history[zone_index][boundary_with_disturbance_up] = sum_misjudgment_1[zone_index]
         boundary_iter_history[zone_index][boundary_with_disturbance_down] = sum_misjudgment_2[zone_index]
         best_misjudgment = min(sum_misjudgment_1[zone_index], sum_misjudgment_2[zone_index],original_misjudgement[zone_index])
+        
         # Track the direction and cost for the current boundary
         direction = initial_direction
-        for iter in range(max_iterations):
+        for _ in range(max_iterations):
             # Adjust boundary in the current direction
-            current_boundary += direction* initial_step
-            # Update boundaries temporarily for evaluation
-            boundaries[zone_index] = current_boundary
+            current_boundary += direction * initial_step
+            boundaries[zone_index] = current_boundary  # Update boundaries temporarily for evaluation
+            
             # Calculate the new misjudgment for this adjustment
             new_misjudgment = compute_misjudgment_counts(device_data, boundaries)[zone_index]
             # Store the new boundary and its cost
@@ -146,17 +154,17 @@ def adjust_zone_boundaries(device_data, protection_device, initial_step=0.1, max
                 else:
                     current_boundary = min(boundary_iter_history[zone_index].keys())
             # maybe no need to implement the stop condition but let it run the iteration all
-        # Update the boundaries after finding the best boundary for this zone
 
-        # Find all keys that have this minimum value
+        # Gather all boundaries that have the minimum misjudgment
         min_keys = [key for key, value in boundary_iter_history[zone_index].items() if value == best_misjudgment]
         boundary_selection_option[zone_index] = min_keys
-        # Finalize the boundaries to ensure proper ordering and minimal misjudgment
+    # Finalize the boundaries to ensure proper ordering and minimal misjudgment
     final_boundaries = finalize_boundaries(boundary_selection_option, original_boundaries)
 
     # Update the zone impedances with the adjusted imaginary parts
     protection_device.associated_zone_impedance = [
-        complex(z.real * final_boundaries[i] / z.imag, final_boundaries[i]) for i, z in enumerate(protection_device.associated_zone_impedance)
+        complex(z.real * final_boundaries[i] / z.imag, final_boundaries[i]) if original_boundaries[i] not in (None, 0, 0j) else z
+        for i, z in enumerate(protection_device.associated_zone_impedance)
     ]
 
     return protection_device
