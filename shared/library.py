@@ -268,6 +268,108 @@ def create_network_without_BC(excel_file):
     print(net)
     return net
 
+def create_network_without_AB1(excel_file):
+    # Select sheets to read
+    bus_data = pd.read_excel(excel_file, sheet_name='bus_data', index_col=0)
+    load_data = pd.read_excel(excel_file, sheet_name='load_data', index_col=0)
+    line_data = pd.read_excel(excel_file, sheet_name='line_data', index_col=0)
+    external_grid_data = pd.read_excel(excel_file, sheet_name='external_grid_data', index_col=0)
+    wind_gen_data = pd.read_excel(excel_file, sheet_name='wind_gen_data', index_col=0)
+
+    net = pp.create_empty_network()
+
+    # buses
+    for idx in bus_data.index:
+        pp.create_bus(net, vn_kv=bus_data.loc[idx, "vn_kv"], name=bus_data.loc[idx, "name"],
+                      type=bus_data.loc[idx, "type"],
+                      geodata=tuple(map(int, bus_data.loc[idx, "geodata"].strip('()').split(','))))
+    # lines
+    for idx in line_data.index:
+        pp.create_line_from_parameters(net, from_bus=line_data.loc[idx, "from_bus"],
+                                       to_bus=line_data.loc[idx, "to_bus"],
+                                       length_km=line_data.loc[idx, "length_km"],
+                                       r_ohm_per_km=line_data.loc[idx, "r_ohm_per_km"],
+                                       x_ohm_per_km=line_data.loc[idx, "x_ohm_per_km"],
+                                       c_nf_per_km=line_data.loc[idx, "c_nf_per_km"],
+                                       r0_ohm_per_km=line_data.loc[idx, "r0_ohm_per_km"],
+                                       x0_ohm_per_km=line_data.loc[idx, "x0_ohm_per_km"],
+                                       c0_nf_per_km=line_data.loc[idx, "c0_nf_per_km"],
+                                       max_i_ka=line_data.loc[idx, "max_i_ka"], parallel=line_data.loc[idx, "parallel"])
+    net.line.at[0, 'in_service'] = False
+    # loads
+    for idx in load_data.index:
+        pp.create_load(net, bus=load_data.at[idx, "bus"], p_mw=load_data.at[idx, "p_mw"],
+                       q_mvar=load_data.at[idx, "q_mvar"], name=load_data.at[idx, "name"])
+    # external grids
+    for idx in external_grid_data.index:
+        pp.create_ext_grid(net, bus=external_grid_data.at[idx, "bus"], vm_pu=external_grid_data.at[idx, "vm_pu"],
+                           va_degree=external_grid_data.at[idx, "va_degree"], name=external_grid_data.at[idx, "name"],
+                           s_sc_max_mva=5e9, rx_max=0.1)
+
+    # generators
+    for idx in wind_gen_data.index:
+        # if idx == 0:
+        #     continue
+        pp.create_sgen(net, bus=wind_gen_data.at[idx, "bus"], p_mw=wind_gen_data.at[idx, "p_mw"],
+                       q_mvar=wind_gen_data.at[idx, "q_mvar"], sn_mva=wind_gen_data.at[idx, "sn_mva"],
+                       name=wind_gen_data.at[idx, "name"],generator_type='current_source', k=1.2)
+
+    print(net)
+    return net
+
+def create_network_meshed_simple(excel_file):
+    # Select sheets to read
+    bus_data = pd.read_excel(excel_file, sheet_name='bus_data', index_col=0)
+    load_data = pd.read_excel(excel_file, sheet_name='load_data', index_col=0)
+    line_data = pd.read_excel(excel_file, sheet_name='line_data', index_col=0)
+    external_grid_data = pd.read_excel(excel_file, sheet_name='external_grid_data', index_col=0)
+    wind_gen_data = pd.read_excel(excel_file, sheet_name='wind_gen_data', index_col=0)
+
+    net = pp.create_empty_network()
+
+    # buses
+    for idx in bus_data.index:
+        pp.create_bus(net, vn_kv=bus_data.loc[idx, "vn_kv"], name=bus_data.loc[idx, "name"],
+                      type=bus_data.loc[idx, "type"],
+                      geodata=tuple(map(int, bus_data.loc[idx, "geodata"].strip('()').split(','))))
+    # lines
+    for idx in line_data.index:
+        pp.create_line_from_parameters(net, from_bus=line_data.loc[idx, "from_bus"],
+                                       to_bus=line_data.loc[idx, "to_bus"],
+                                       length_km=line_data.loc[idx, "length_km"],
+                                       r_ohm_per_km=line_data.loc[idx, "r_ohm_per_km"],
+                                       x_ohm_per_km=line_data.loc[idx, "x_ohm_per_km"],
+                                       c_nf_per_km=line_data.loc[idx, "c_nf_per_km"],
+                                       r0_ohm_per_km=line_data.loc[idx, "r0_ohm_per_km"],
+                                       x0_ohm_per_km=line_data.loc[idx, "x0_ohm_per_km"],
+                                       c0_nf_per_km=line_data.loc[idx, "c0_nf_per_km"],
+                                       max_i_ka=line_data.loc[idx, "max_i_ka"], parallel=line_data.loc[idx, "parallel"])
+    # net.line.at[0, 'length_km'] = net.line.at[0, 'length_km'] * 0.5
+    net.line.at[1, 'in_service'] = False
+    net.line.at[4, 'in_service'] = False
+    net.line.at[5, 'in_service'] = False
+    net.line.at[13, 'in_service'] = False
+    # loads
+    for idx in load_data.index:
+        pp.create_load(net, bus=load_data.at[idx, "bus"], p_mw=load_data.at[idx, "p_mw"],
+                       q_mvar=load_data.at[idx, "q_mvar"], name=load_data.at[idx, "name"])
+    # external grids
+    for idx in external_grid_data.index:
+        pp.create_ext_grid(net, bus=external_grid_data.at[idx, "bus"], vm_pu=external_grid_data.at[idx, "vm_pu"],
+                           va_degree=external_grid_data.at[idx, "va_degree"], name=external_grid_data.at[idx, "name"],
+                           s_sc_max_mva=5e9, rx_max=0.1)
+
+    # generators
+    for idx in wind_gen_data.index:
+        # if idx == 0:
+        #     continue
+        pp.create_sgen(net, bus=wind_gen_data.at[idx, "bus"], p_mw=wind_gen_data.at[idx, "p_mw"],
+                       q_mvar=wind_gen_data.at[idx, "q_mvar"], sn_mva=wind_gen_data.at[idx, "sn_mva"],
+                       name=wind_gen_data.at[idx, "name"],generator_type='current_source', k=1.2)
+        # net.sgen.at[idx, 'in_service'] = False
+    print(net)
+    return net
+
 class ProtectionDevice:
     def __init__(self, device_id, bus_id, first_line_id, replaced_line_id, net, depth=3):
         self.device_id = device_id
@@ -370,6 +472,8 @@ class ProtectionDevice:
                         for from_bus, to_bus, data in depth_3_edges:
                             if to_bus == previous_bus:
                                 continue  # Avoid going backward
+                            
+                            valid_forward_edge_found = True
                             
                             # Check for parallel line again at this depth
                             parallel_line_flag = len(
@@ -721,7 +825,8 @@ def calculate_impedance(net, device, from_bus, to_bus, fault_line_on_doubleline_
                 return None
         path_bus_pairs = set(tuple(sorted([u, v])) for u, v in zip(path[:-1], path[1:]))
         # Identify all bus pairs with parallel lines
-        parallel_lines = net.line[net.line['in_service'] & net.line.duplicated(subset=['from_bus', 'to_bus'], keep=False)]
+        in_service_lines = net.line[net.line['in_service']]
+        parallel_lines = in_service_lines[in_service_lines.duplicated(subset=['from_bus', 'to_bus'], keep=False)]
         parallel_bus_pairs = set(
             tuple(sorted([row['from_bus'], row['to_bus']])) for _, row in parallel_lines.iterrows())
         # right now the 0 and 1 is hard coded, it will be fixed later
@@ -844,7 +949,7 @@ def simulate_faults_along_line(net, line_id, affected_devices, fault_line_on_dou
                     print(f"the line {affected_devices[device].associated_line_id} result is not existed")
                     return None, None, None
                 # calculate the magnitude and the angle of the impedance
-                r_sensed = vm_pu * HV / (ikss_ka * 3 ** 0.5)
+                r_sensed = vm_pu * HV / ((ikss_ka+1e-9) * 3 ** 0.5)
                 angle_sensed = va_degree - ikss_degree
                 zone_sensed = affected_devices[device].check_zone_with_mag_angle(r_sensed, angle_sensed)
                 
@@ -888,6 +993,7 @@ def simulate_faults_for_all_lines(net, protection_devices, interval_km=0.25):
 
             # Assuming that affected devices are consistent along the line
             affected_devices = find_affected_devices(line_id, protection_devices)
+            
             # Set the flag if the current line_id is part of any double-line pair
             fault_line_on_doubleline_flag = line_id in double_line_ids
 
@@ -1061,8 +1167,11 @@ def my_simple_plot(net, respect_switches=False, line_width=1.0, bus_size=1.0, ex
         collections.append(sc)
 
     if plot_sgens and len(net.sgen):
-        sgc = create_sgen_collection(net, size=sgen_size, orientation=sgn_oritation)
+        in_service_sgens = net.sgen[net.sgen['in_service']]
+        sgc = create_sgen_collection(net, size=sgen_size, orientation=sgn_oritation,
+                                     sgens=in_service_sgens.index)
         collections.append(sgc)
+
     if plot_gens and len(net.gen):
         gc = create_gen_collection(net, size=gen_size)
         collections.append(gc)

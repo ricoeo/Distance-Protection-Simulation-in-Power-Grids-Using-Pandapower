@@ -6,10 +6,10 @@ excel_file = 'grid_data_sheet.xlsx'
 # Step 1: Create the network with generation
 net_with_gen = create_network(excel_file)
 net_without_parallel_line = create_network_withoutparallelline(excel_file)
-net_without_BC = create_network_without_BC(excel_file)
+net_without_AB1 = create_network_without_AB1(excel_file)
 
 # Step 2: Set up protection zones for the network
-Protection_devices = setup_protection_zones(net_without_BC, excel_file)
+Protection_devices = setup_protection_zones(net_without_AB1, excel_file)
 
 # Initialize a list to store the protection data
 protection_data = []
@@ -30,7 +30,7 @@ for idx, device in Protection_devices.items():
 protection_df = pd.DataFrame(protection_data)
 
 # Step 5: Save the DataFrame to an Excel file
-output_file = 'protection_zones_1211.xlsx'
+output_file = 'protection_zones_without_AB1.xlsx'
 protection_df.to_excel(output_file, index=False)
 
 # Print a confirmation message
