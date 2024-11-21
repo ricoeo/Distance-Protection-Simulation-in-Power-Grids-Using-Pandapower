@@ -26,7 +26,7 @@ def simulate_faults_for_half_line_position(net, protection_devices, plot_power_f
 excel_file = 'grid_data_sheet.xlsx'
 
 # a new create network function is written
-net = create_network_meshed_simple(excel_file)
+net = create_network_without_AB1(excel_file)
 
 Protection_devices = setup_protection_zones(net, excel_file)
 

@@ -5,10 +5,10 @@ from shared.protection_border_adjust import adjust_protection_zone_with_measurem
 excel_file = 'grid_data_sheet.xlsx'
 
 # a new create network function is written
-net = create_network_without_BC(excel_file)
+net = create_network_without_BE_AB1(excel_file)
 
 # import the previous measurement data, always check it to the up-to-date measurement data
-excel_file_measure = 'fault_detection_check_1311_origin.xlsx'
+excel_file_measure = 'fault_detection_check_AB1_BE.xlsx'
 measurement_data = pd.read_excel(excel_file_measure)
 
 # change the protection zone setting according to the measurement data
@@ -22,4 +22,4 @@ protection_data= simulate_faults_for_all_lines(net, Protection_devices_fix)
 protection_df = pd.DataFrame(protection_data)
 
 # write to Excel file
-protection_df.to_excel('fault_detection_with_new_protection_border_1311_origin.xlsx', index=False)
+protection_df.to_excel('fault_detection_with_new_protection_border_AB1_BE.xlsx', index=False)
