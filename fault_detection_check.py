@@ -8,7 +8,7 @@ excel_file = "grid_data_sheet.xlsx"
 # net_withou_BC = create_network_without_BC(excel_file)
 # net_without_AB1 = create_network_without_AB1(excel_file)
 # net_meshed_simple =create_network_meshed_simple(excel_file)
-net = create_network_without_BE_AB1(excel_file)
+net = create_network(excel_file)
 
 # set the protection zone setting
 Protection_devices = setup_protection_zones(net, excel_file)
@@ -20,4 +20,4 @@ protection_data = simulate_faults_for_all_lines(net, Protection_devices)
 protection_df = pd.DataFrame(protection_data)
 
 # write to Excel file
-protection_df.to_excel("fault_detection_check_AB1_BE.xlsx", index=False)
+protection_df.to_excel("fault_detection_check_zero_generation.xlsx", index=False)
