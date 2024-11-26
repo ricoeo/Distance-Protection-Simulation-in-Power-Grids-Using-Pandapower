@@ -1179,9 +1179,63 @@ def setup_protection_zones(net, excel_file):
 """ Function defined for the fault simulation: start """
 
 
-def find_affected_devices(line_id, all_devices):
-    # affected_devices = all_devices
-    return all_devices
+def find_affected_devices(line_id, protection_devices, net):
+    """
+    Find protection devices associated with a given line and its adjacent lines
+    (up to two levels of adjacency).
+
+    Parameters:
+    - line_id: The ID of the center line for which we are finding affected devices.
+    - protection_devices: DataFrame of protection devices with an "associated_line_id" column.
+    - net: The network data structure containing line and bus information.
+
+    Returns:
+    - List of affected protection devices.
+    """
+    # Find the buses connected to the center line
+    center_from_bus = net.line.at[line_id, "from_bus"]
+    center_to_bus = net.line.at[line_id, "to_bus"]
+
+    # Step 1: Find adjacent lines (direct connections)
+    adjacent_lines = set(
+        net.line[
+            (
+                net.line["from_bus"].isin([center_from_bus, center_to_bus])
+                | net.line["to_bus"].isin([center_from_bus, center_to_bus])
+            )
+            & (net.line.index != line_id)  # Exclude the center line itself
+        ].index
+    )
+
+    # Step 2: Find lines adjacent to the adjacent lines (second level of adjacency)
+    second_level_buses = set(
+        net.line.loc[
+            list(adjacent_lines), ["from_bus", "to_bus"]
+        ].values.flatten()  # Convert to list
+    )
+    second_level_lines = set(
+        net.line[
+            (
+                net.line["from_bus"].isin(second_level_buses)
+                | net.line["to_bus"].isin(second_level_buses)
+            )
+            & ~net.line.index.isin(
+                adjacent_lines | {line_id}
+            )  # Exclude already considered lines
+        ].index
+    )
+
+    # Combine all relevant line IDs
+    relevant_lines = {line_id} | adjacent_lines | second_level_lines
+
+    # Step 3: Filter and return a dictionary of protection devices
+    affected_devices = {
+        device_id: device
+        for device_id, device in protection_devices.items()
+        if device.associated_line_id in relevant_lines
+    }
+
+    return affected_devices
 
 
 def filter_and_save_devices_by_line_id(devices, line_id):
@@ -1591,7 +1645,7 @@ def simulate_faults_for_all_lines(net, protection_devices, interval_km=0.25):
             print(f"Simulating faults along line {line_id}")
 
             # Assuming that affected devices are consistent along the line
-            affected_devices = find_affected_devices(line_id, protection_devices)
+            affected_devices = find_affected_devices(line_id, protection_devices, net)
 
             # Set the flag if the current line_id is part of any double-line pair
             fault_line_on_doubleline_flag = line_id in double_line_ids

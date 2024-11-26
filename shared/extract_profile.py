@@ -443,7 +443,7 @@ def load_profiles(net):
 
     # Sgn 6
     wind_speed_sgn6 = request_hamburg.summarize(latlon=(53.3, 9.7)).df
-    print(wind_speed_sgn6.drop_nulls().shape)
+    # print(wind_speed_sgn6.drop_nulls().shape) #this library implementation sometimes very critical of the float number
     """a simple way to get the real and imaginary power outputs for a wind turbine based on input wind speeds"""
     gen_mw_sgn0 = (
         generate_wind_turbine_power_output(wind_speed_sgn0) * 4
@@ -472,7 +472,7 @@ def load_profiles(net):
     # print(gen_mw_sgn3.info())
     # print(gen_mw_sgn4.info())
     # print(gen_mw_sgn5.info())
-    print(gen_mw_sgn6.info())
+    # print(gen_mw_sgn6.info())
 
     """create datasource from it and initialize ConstControl controller to update values"""
     create_datasource_cccontroller_with_wind_turbine_profiles(
