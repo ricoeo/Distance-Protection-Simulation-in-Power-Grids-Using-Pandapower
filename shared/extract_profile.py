@@ -497,10 +497,4 @@ def load_profiles(net):
         net, gen_mw_sgn6, turbine_id=6
     )
 
-    """create output writer"""
-    ow = ts.OutputWriter(net, output_path="./", output_file_type=".xlsx")
-    ow.log_variable("res_load", "p_mw")
-    ow.log_variable("res_load", "q_mvar")
-    ow.log_variable("res_sgen", "p_mw")
-
     return net

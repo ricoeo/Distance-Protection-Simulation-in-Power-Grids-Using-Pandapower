@@ -1180,62 +1180,64 @@ def setup_protection_zones(net, excel_file):
 
 
 def find_affected_devices(line_id, protection_devices, net):
-    """
-    Find protection devices associated with a given line and its adjacent lines
-    (up to two levels of adjacency).
+    # """
+    # the reason it is not used is the complexity of the adjacency between bus 2 and bus 3
+    # Find protection devices associated with a given line and its adjacent lines
+    # (up to two levels of adjacency).
 
-    Parameters:
-    - line_id: The ID of the center line for which we are finding affected devices.
-    - protection_devices: DataFrame of protection devices with an "associated_line_id" column.
-    - net: The network data structure containing line and bus information.
+    # Parameters:
+    # - line_id: The ID of the center line for which we are finding affected devices.
+    # - protection_devices: DataFrame of protection devices with an "associated_line_id" column.
+    # - net: The network data structure containing line and bus information.
 
-    Returns:
-    - List of affected protection devices.
-    """
-    # Find the buses connected to the center line
-    center_from_bus = net.line.at[line_id, "from_bus"]
-    center_to_bus = net.line.at[line_id, "to_bus"]
+    # Returns:
+    # - List of affected protection devices.
+    # """
+    # # Find the buses connected to the center line
+    # center_from_bus = net.line.at[line_id, "from_bus"]
+    # center_to_bus = net.line.at[line_id, "to_bus"]
 
-    # Step 1: Find adjacent lines (direct connections)
-    adjacent_lines = set(
-        net.line[
-            (
-                net.line["from_bus"].isin([center_from_bus, center_to_bus])
-                | net.line["to_bus"].isin([center_from_bus, center_to_bus])
-            )
-            & (net.line.index != line_id)  # Exclude the center line itself
-        ].index
-    )
+    # # Step 1: Find adjacent lines (direct connections)
+    # adjacent_lines = set(
+    #     net.line[
+    #         (
+    #             net.line["from_bus"].isin([center_from_bus, center_to_bus])
+    #             | net.line["to_bus"].isin([center_from_bus, center_to_bus])
+    #         )
+    #         & (net.line.index != line_id)  # Exclude the center line itself
+    #     ].index
+    # )
 
-    # Step 2: Find lines adjacent to the adjacent lines (second level of adjacency)
-    second_level_buses = set(
-        net.line.loc[
-            list(adjacent_lines), ["from_bus", "to_bus"]
-        ].values.flatten()  # Convert to list
-    )
-    second_level_lines = set(
-        net.line[
-            (
-                net.line["from_bus"].isin(second_level_buses)
-                | net.line["to_bus"].isin(second_level_buses)
-            )
-            & ~net.line.index.isin(
-                adjacent_lines | {line_id}
-            )  # Exclude already considered lines
-        ].index
-    )
+    # # Step 2: Find lines adjacent to the adjacent lines (second level of adjacency)
+    # second_level_buses = set(
+    #     net.line.loc[
+    #         list(adjacent_lines), ["from_bus", "to_bus"]
+    #     ].values.flatten()  # Convert to list
+    # )
+    # second_level_lines = set(
+    #     net.line[
+    #         (
+    #             net.line["from_bus"].isin(second_level_buses)
+    #             | net.line["to_bus"].isin(second_level_buses)
+    #         )
+    #         & ~net.line.index.isin(
+    #             adjacent_lines | {line_id}
+    #         )  # Exclude already considered lines
+    #     ].index
+    # )
 
-    # Combine all relevant line IDs
-    relevant_lines = {line_id} | adjacent_lines | second_level_lines
+    # # Combine all relevant line IDs
+    # relevant_lines = {line_id} | adjacent_lines | second_level_lines
 
-    # Step 3: Filter and return a dictionary of protection devices
-    affected_devices = {
-        device_id: device
-        for device_id, device in protection_devices.items()
-        if device.associated_line_id in relevant_lines
-    }
+    # # Step 3: Filter and return a dictionary of protection devices
+    # affected_devices = {
+    #     device_id: device
+    #     for device_id, device in protection_devices.items()
+    #     if device.associated_line_id in relevant_lines
+    # }
 
-    return affected_devices
+    # return affected_devices
+    return protection_devices
 
 
 def filter_and_save_devices_by_line_id(devices, line_id):
@@ -1335,6 +1337,15 @@ def calculate_impedance(net, device, from_bus, to_bus, fault_line_on_doubleline_
         path = nx.dijkstra_path(
             directed_graph, source=from_bus, target=to_bus, weight="weight"
         )
+        # add on: only two degree adjacency is intended to be considered, so if the path go through more than three buses (except node), it is far
+        # Check if the path goes through more than two buses of type "b"
+        b_type_buses = net.bus[net.bus["type"] == "b"].index
+        buses_in_path = [bus for bus in path if bus in b_type_buses]
+
+        if len(buses_in_path) > 3:
+            # Return None if the path includes more than two "b" type buses
+            return None
+
         # start to consider several complicated cases related with parallel lines
         # case 1 bypassing the external grid
         # Get bus numbers connected to the external grid
@@ -1629,9 +1640,29 @@ def simulate_faults_along_line(
     return device_data_dict
 
 
-def simulate_faults_for_all_lines(net, protection_devices, interval_km=0.25):
-    """Simulate faults along all in-service lines and collect data for protection devices."""
+def simulate_faults_for_all_lines(
+    net,
+    protection_devices,
+    interval_km=0.25,
+    show_sum_up_information_flag=False,
+):
+    """
+    Simulate faults along all in-service lines and collect data for protection devices.
+
+    Parameters:
+        net: The pandapower network object.
+        protection_devices: List or dict of protection devices to analyze.
+        interval_km: Distance between fault points in kilometers (default: 0.25).
+        show_sum_up_information_flag: If True, summarize the results instead of detailed output.
+
+    Returns:
+        If show_sum_up_information_flag is False:
+            List of device-level data for each fault case.
+        If show_sum_up_information_flag is True:
+            Summary information with total fault cases and lines analyzed.
+    """
     protection_data = []
+
     # Identify double lines by finding bus pairs with multiple lines in service
     double_line_pairs = (
         net.line[net.line["in_service"]]
@@ -1663,6 +1694,36 @@ def simulate_faults_for_all_lines(net, protection_devices, interval_km=0.25):
             net.line.at[line_id, "in_service"] = True
 
             protection_data.extend(device_data)
+
+    # prepare the data for timeseries running
+    if protection_data and show_sum_up_information_flag:
+        protection_df = pd.DataFrame(protection_data)
+        all_device_ids = protection_df["Device ID"].unique()
+        protection_fault_case_df = protection_df.loc[
+            ~protection_df["same_zone_detection"]
+        ]
+        # calcualte total faults and cases
+        total_fault_cases = len(protection_fault_case_df)
+        total_cases_analyzed = len(protection_df)
+        # count fault cases per device
+        device_sum = (
+            protection_fault_case_df["Device ID"]
+            .value_counts()
+            .reindex(all_device_ids, fill_value=0)
+            .sort_index()
+        )
+        # create summary
+        summary_df = pd.DataFrame(
+            {
+                **{
+                    f"Device {device_id}": device_sum.get(device_id, 0)
+                    for device_id in device_sum.index
+                },
+                "Total_fault_cases": [total_fault_cases],
+                "Total_cases_analyzed": [total_cases_analyzed],
+            }
+        )
+        return summary_df
 
     return protection_data
 
@@ -2029,3 +2090,26 @@ def plot_short_circuit_results(net, figure_number):
 
 
 """end: plot the short circuit simulation power flow"""
+
+
+"""start: the output writer for our usecase"""
+import pandapower.timeseries as ts
+
+
+class CustomOutputWriter(ts.OutputWriter):
+    def __init__(self, net, output_dir, file_type):
+        super().__init__(net)
+        self.output_dir = output_dir
+        self.file_type = file_type
+
+    def save_results(self, Protection_devices):
+        """
+        Save fault simulation results for the current time step.
+        """
+        protection_data = simulate_faults_for_all_lines(self.net, Protection_devices)
+        protection_df = pd.DataFrame(protection_data)
+        output_file = os.path.join(self.output_dir, f"time_step_{time_step}.xlsx")
+        protection_df.to_excel(output_file, index=False)
+
+
+"""end: the output writer for our usecase"""
