@@ -3,7 +3,7 @@ from shared.library import *
 # Read the data from the Excel file
 excel_file = "grid_data_sheet.xlsx"
 
-net = create_network_without_BE_AB1(excel_file)
+net = create_network_without_BE(excel_file)
 
 # set the protection zone setting
 Protection_devices = setup_protection_zones(net, excel_file)

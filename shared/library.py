@@ -174,9 +174,8 @@ def create_network_without_gen(excel_file):
     return net
 
 
-# test the network without parallel line
 def create_network_withoutparallelline(excel_file):
-    # Select sheets to read
+    # test the network without parallel line
     bus_data = pd.read_excel(excel_file, sheet_name="bus_data", index_col=0)
     load_data = pd.read_excel(excel_file, sheet_name="load_data", index_col=0)
     line_data = pd.read_excel(excel_file, sheet_name="line_data", index_col=0)
@@ -316,6 +315,8 @@ def create_network_without_BE_AB1(excel_file):
             name=external_grid_data.at[idx, "name"],
             s_sc_max_mva=5e9,
             rx_max=0.1,
+            r0x0_max=0.4,
+            x0x_max=1.0,
         )
 
     # generators
@@ -331,13 +332,14 @@ def create_network_without_BE_AB1(excel_file):
             name=wind_gen_data.at[idx, "name"],
             generator_type="current_source",
             k=1.2,
+            kappa=1.2,
         )
 
     print(net)
     return net
 
 
-def create_network_without_BC(excel_file):
+def create_network_without_BE(excel_file):
     # Select sheets to read
     bus_data = pd.read_excel(excel_file, sheet_name="bus_data", index_col=0)
     load_data = pd.read_excel(excel_file, sheet_name="load_data", index_col=0)
@@ -376,7 +378,7 @@ def create_network_without_BC(excel_file):
             max_i_ka=line_data.loc[idx, "max_i_ka"],
             parallel=line_data.loc[idx, "parallel"],
         )
-    net.line.at[3, "in_service"] = False
+    net.line.at[4, "in_service"] = False
     # loads
     for idx in load_data.index:
         pp.create_load(
@@ -411,6 +413,7 @@ def create_network_without_BC(excel_file):
             name=wind_gen_data.at[idx, "name"],
             generator_type="current_source",
             k=1.2,
+            kappa=1.2,
         )
 
     print(net)
@@ -577,6 +580,96 @@ def create_network_meshed_simple(excel_file):
             k=1.2,
         )
         # net.sgen.at[idx, 'in_service'] = False
+    print(net)
+    return net
+
+
+def create_network_without_BE_AB1_reference(excel_file, index, excel_file_sgen):
+    # Select sheets to read
+    bus_data = pd.read_excel(excel_file, sheet_name="bus_data", index_col=0)
+    load_data = pd.read_excel(excel_file, sheet_name="load_data", index_col=0)
+    line_data = pd.read_excel(excel_file, sheet_name="line_data", index_col=0)
+    external_grid_data = pd.read_excel(
+        excel_file, sheet_name="external_grid_data", index_col=0
+    )
+    wind_gen_idx = pd.read_excel(excel_file, sheet_name="wind_gen_data", index_col=0)
+    wind_gen_data = pd.read_excel(excel_file_sgen, index_col=0).loc[index]
+
+    net = pp.create_empty_network()
+
+    # buses
+    for idx in bus_data.index:
+        pp.create_bus(
+            net,
+            vn_kv=bus_data.loc[idx, "vn_kv"],
+            name=bus_data.loc[idx, "name"],
+            type=bus_data.loc[idx, "type"],
+            geodata=tuple(
+                map(int, bus_data.loc[idx, "geodata"].strip("()").split(","))
+            ),
+        )
+    # lines
+    for idx in line_data.index:
+        pp.create_line_from_parameters(
+            net,
+            from_bus=line_data.loc[idx, "from_bus"],
+            to_bus=line_data.loc[idx, "to_bus"],
+            length_km=line_data.loc[idx, "length_km"],
+            r_ohm_per_km=line_data.loc[idx, "r_ohm_per_km"],
+            x_ohm_per_km=line_data.loc[idx, "x_ohm_per_km"],
+            c_nf_per_km=line_data.loc[idx, "c_nf_per_km"],
+            r0_ohm_per_km=line_data.loc[idx, "r0_ohm_per_km"],
+            x0_ohm_per_km=line_data.loc[idx, "x0_ohm_per_km"],
+            c0_nf_per_km=line_data.loc[idx, "c0_nf_per_km"],
+            max_i_ka=line_data.loc[idx, "max_i_ka"],
+            parallel=line_data.loc[idx, "parallel"],
+        )
+    net.line.at[4, "in_service"] = False
+    net.line.at[0, "in_service"] = False
+    # loads
+    for idx in load_data.index:
+        pp.create_load(
+            net,
+            bus=load_data.at[idx, "bus"],
+            p_mw=load_data.at[idx, "p_mw"],
+            q_mvar=load_data.at[idx, "q_mvar"],
+            name=load_data.at[idx, "name"],
+        )
+    # external grids
+    for idx in external_grid_data.index:
+        pp.create_ext_grid(
+            net,
+            bus=external_grid_data.at[idx, "bus"],
+            vm_pu=external_grid_data.at[idx, "vm_pu"],
+            va_degree=external_grid_data.at[idx, "va_degree"],
+            name=external_grid_data.at[idx, "name"],
+            s_sc_max_mva=5e9,
+            rx_max=0.1,
+            r0x0_max=0.4,
+            x0x_max=1.0,
+        )
+
+    # generators
+    for col_idx, p_mw in enumerate(wind_gen_data):
+        # if idx == 0:
+        #     continue
+        pp.create_sgen(
+            net,
+            bus=wind_gen_idx.at[col_idx, "bus"],
+            p_mw=p_mw,
+            q_mvar=p_mw * 0.3,
+            sn_mva=wind_gen_idx.at[col_idx, "sn_mva"],
+            name=wind_gen_idx.at[col_idx, "name"],
+            generator_type="current_source",
+            k=1,
+        )
+    # pp.create_sgen(net, 1, 6.27, 1.88, 35, k=1.2)
+    # pp.create_sgen(net, 2, 13.600062, 4.080019, 50, k=1.2)
+    # pp.create_sgen(net, 6, 8.532608, 2.559782, 50.0, k=1.2)
+    # pp.create_sgen(net, 7, 9.417264, 2.825179, 35, k=1.2)
+    # pp.create_sgen(net, 8, 3.139088, 0.941726, 20.0, k=1.2)
+    # pp.create_sgen(net, 9, 25.112703, 7.533811, 75.0, k=1.2)
+    # pp.create_sgen(net, 10, 0.775692, 0.232707, 10.0, k=1.2)
     print(net)
     return net
 
@@ -1139,7 +1232,7 @@ def setup_protection_zones(net, excel_file):
         parallel=line_data.at[6, "parallel"],
     )
 
-    # distance_protection_data = pd.read_excel(excel_file, sheet_name='dist_protect_data _simple', index_col=0)
+    # distance_protection_data = pd.read_excel(excel_file, sheet_name='dist_protect_data_simple', index_col=0)
     distance_protection_data = pd.read_excel(
         excel_file, sheet_name="dist_protect_data_complex", index_col=0
     )
@@ -1281,7 +1374,7 @@ def recover_associated_line_id(matching_devices, saved_associated_line_ids):
 
 
 def convert_to_directed(
-    g_undirected, initial_direction, fault_bus, fault_line_on_doubleline_flag
+    g_undirected, initial_direction, fault_bus, fault_line_on_doubleline_info
 ):
     g_directed = nx.DiGraph()  # Initialize a directed graph
     keys_to_extract = ["weight", "r_ohm", "x_ohm"]
@@ -1301,18 +1394,34 @@ def convert_to_directed(
         else:
             if g_directed.has_edge(initial_direction[0], neighbor):
                 g_directed.remove_edge(initial_direction[0], neighbor)
-    if fault_line_on_doubleline_flag:
-        if initial_direction == (0, 1):
-            if g_directed.has_edge(1, fault_bus):
-                g_directed.remove_edge(1, fault_bus)
-        elif initial_direction == (1, 0):
-            if g_directed.has_edge(0, fault_bus):
-                g_directed.remove_edge(0, fault_bus)
+    if fault_line_on_doubleline_info["flag"]:
+        if initial_direction == (
+            fault_line_on_doubleline_info["line_info"][0],
+            fault_line_on_doubleline_info["line_info"][1],
+        ):
+            if g_directed.has_edge(
+                fault_line_on_doubleline_info["line_info"][1], fault_bus
+            ):
+                g_directed.remove_edge(
+                    fault_line_on_doubleline_info["line_info"][1], fault_bus
+                )
+        elif initial_direction == (
+            fault_line_on_doubleline_info["line_info"][1],
+            fault_line_on_doubleline_info["line_info"][0],
+        ):
+            if g_directed.has_edge(
+                fault_line_on_doubleline_info["line_info"][0], fault_bus
+            ):
+                g_directed.remove_edge(
+                    fault_line_on_doubleline_info["line_info"][0], fault_bus
+                )
 
     return g_directed
 
 
-def calculate_impedance(net, device, from_bus, to_bus, fault_line_on_doubleline_flag):
+def calculate_impedance_old(
+    net, device, from_bus, to_bus, fault_line_on_doubleline_flag
+):
     """Calculate the impedance between two buses. Shortest distance"""
     graph = top.create_nxgraph(
         net, include_lines=True, include_impedances=True, calc_branch_impedances=True
@@ -1337,8 +1446,8 @@ def calculate_impedance(net, device, from_bus, to_bus, fault_line_on_doubleline_
         path = nx.dijkstra_path(
             directed_graph, source=from_bus, target=to_bus, weight="weight"
         )
+
         # add on: only two degree adjacency is intended to be considered, so if the path go through more than three buses (except node), it is far
-        # Check if the path goes through more than two buses of type "b"
         b_type_buses = net.bus[net.bus["type"] == "b"].index
         buses_in_path = [bus for bus in path if bus in b_type_buses]
 
@@ -1361,6 +1470,7 @@ def calculate_impedance(net, device, from_bus, to_bus, fault_line_on_doubleline_
                 # print(
                 #     f"Path bypasses one of the external grid buses. Device {device.device_id} should not be considered.")
                 return None
+
         path_bus_pairs = set(tuple(sorted([u, v])) for u, v in zip(path[:-1], path[1:]))
         # Identify all bus pairs with parallel lines
         in_service_lines = net.line[net.line["in_service"]]
@@ -1437,6 +1547,172 @@ def calculate_impedance(net, device, from_bus, to_bus, fault_line_on_doubleline_
     return total_impedance
 
 
+def calculate_impedance(net, device, from_bus, to_bus, fault_line_on_doubleline_info):
+    """Calculate the impedance between two buses. Shortest distance, consiering parallel lines"""
+    # Constants
+    MAX_B_TYPE_BUSES = 3
+    DEFAULT_IMPEDANCE_THRESHOLD = 1e-12  # To avoid division by zero
+
+    def validate_inputs():
+        if not fault_line_on_doubleline_info.get("flag"):
+            fault_line_on_doubleline_info["flag"] = False
+        if "line_info" not in fault_line_on_doubleline_info:
+            warnings.warn(
+                "fault_line_on_doubleline_info['line_info'] is not initialized.",
+                RuntimeWarning,
+            )
+            fault_line_on_doubleline_info["line_info"] = []
+
+    # Validate inputs
+    validate_inputs()
+
+    # Create the graph and prepare for pathfinding
+    graph = top.create_nxgraph(
+        net, include_lines=True, include_impedances=True, calc_branch_impedances=True
+    )
+    initial_associated_line = net.line.loc[device.associated_line_id]
+    initial_from_bus = from_bus
+    initial_to_bus = (
+        initial_associated_line.from_bus
+        if initial_from_bus != initial_associated_line.from_bus
+        else initial_associated_line.to_bus
+    )
+
+    # Set initial direction based on device's associated line
+    initial_direction = (initial_from_bus, initial_to_bus)
+    directed_graph = convert_to_directed(
+        graph, initial_direction, to_bus, fault_line_on_doubleline_info
+    )
+
+    total_impedance = 0
+    try:
+        # Ensure the path exists and retrieve the shortest path based on the impedance
+        path = nx.dijkstra_path(
+            directed_graph, source=from_bus, target=to_bus, weight="weight"
+        )
+
+        # add on: only two degree adjacency is intended to be considered, so if the path go through more than three buses (except node), it is far
+        b_type_buses = net.bus[net.bus["type"] == "b"].index
+        buses_in_path = [bus for bus in path if bus in b_type_buses]
+
+        if len(buses_in_path) > MAX_B_TYPE_BUSES:
+            # Return None if the path includes more than two "b" type buses
+            return None
+
+        # start to consider several complicated cases related with parallel lines
+        # case 1 bypassing the external grid
+        # Get bus numbers connected to the external grid
+        external_grid_buses = net.ext_grid["bus"].tolist()
+
+        # Check if the path bypasses any external grid bus
+        for bus in external_grid_buses:
+            if (
+                bus in path
+                and path.index(bus) != 0
+                and path.index(bus) != len(path) - 1
+            ):
+                # print(
+                #     f"Path bypasses one of the external grid buses. Device {device.device_id} should not be considered.")
+                return None
+
+        # Identify all bus pairs with parallel lines
+        path_bus_pairs = set(tuple(sorted([u, v])) for u, v in zip(path[:-1], path[1:]))
+        in_service_lines = net.line[net.line["in_service"]]
+        parallel_lines = in_service_lines[
+            in_service_lines.duplicated(subset=["from_bus", "to_bus"], keep=False)
+        ]
+        parallel_bus_pairs = set(
+            tuple(sorted([row["from_bus"], row["to_bus"]]))
+            for _, row in parallel_lines.iterrows()
+        )
+        parallel_in_path = path_bus_pairs.intersection(parallel_bus_pairs)
+
+        dp_on_parallel_line_compensation_factor = 1
+
+        for i, (u, v) in enumerate(zip(path[:-1], path[1:])):
+            bus_pair = tuple(sorted([u, v]))
+            # Case 2 if the distance protection device in in the parallel line and the fault is also not in the same line
+            if i == 0 and bus_pair in parallel_in_path:
+                dp_on_parallel_line_compensation_factor = 2
+                line_value = directed_graph.get_edge_data(u, v)
+                total_impedance += line_value["r_ohm"] + 1j * line_value["x_ohm"]
+            # Case 3 if parallel line is in path
+            elif i != 0 and bus_pair in parallel_in_path:
+
+                # Calculate combined impedance of parallel lines
+                combined_impedance_r = directed_graph.get_edge_data(u, v)["r_ohm"] * 0.5
+                combined_impedance_x = directed_graph.get_edge_data(u, v)["x_ohm"] * 0.5
+                total_impedance += (
+                    combined_impedance_r + 1j * combined_impedance_x
+                ) * dp_on_parallel_line_compensation_factor
+            # Case 4 Fault on Parallel Line
+            elif (
+                i == len(path) - 2 and i != 0 and fault_line_on_doubleline_info["flag"]
+            ):
+                if (fault_line_on_doubleline_info["line_info"][0], to_bus) == bus_pair:
+                    line_part1_value = list(
+                        graph.get_edge_data(
+                            fault_line_on_doubleline_info["line_info"][0], to_bus
+                        ).values()
+                    )[0]
+                    line_part2_value = list(
+                        graph.get_edge_data(
+                            fault_line_on_doubleline_info["line_info"][1], to_bus
+                        ).values()
+                    )[0]
+                elif (
+                    fault_line_on_doubleline_info["line_info"][1],
+                    to_bus,
+                ) == bus_pair:
+                    line_part1_value = list(
+                        graph.get_edge_data(
+                            fault_line_on_doubleline_info["line_info"][1], to_bus
+                        ).values()
+                    )[0]
+                    line_part2_value = list(
+                        graph.get_edge_data(
+                            fault_line_on_doubleline_info["line_info"][0], to_bus
+                        ).values()
+                    )[0]
+                line_part3_value = list(
+                    graph.get_edge_data(
+                        *fault_line_on_doubleline_info["line_info"]
+                    ).values()
+                )[0]
+                combined_impedance_r = 1 / (
+                    1 / (line_part1_value["r_ohm"] + DEFAULT_IMPEDANCE_THRESHOLD)
+                    + 1
+                    / (
+                        line_part2_value["r_ohm"]
+                        + line_part3_value["r_ohm"]
+                        + DEFAULT_IMPEDANCE_THRESHOLD
+                    )
+                )
+                combined_impedance_x = 1 / (
+                    1 / (line_part1_value["x_ohm"] + DEFAULT_IMPEDANCE_THRESHOLD)
+                    + 1
+                    / (
+                        line_part2_value["x_ohm"]
+                        + line_part3_value["x_ohm"]
+                        + DEFAULT_IMPEDANCE_THRESHOLD
+                    )
+                )
+                total_impedance += (
+                    combined_impedance_r + 1j * combined_impedance_x
+                ) * dp_on_parallel_line_compensation_factor
+
+            else:
+                line_value = directed_graph.get_edge_data(u, v)
+                total_impedance += (
+                    line_value["r_ohm"] + 1j * line_value["x_ohm"]
+                ) * dp_on_parallel_line_compensation_factor
+
+    except nx.NetworkXNoPath:
+        # print(f"No path available from bus {from_bus} to bus {to_bus}.")
+        total_impedance = None  # Indicate that no path exists.
+    return total_impedance
+
+
 """ Function defined for the fault simulation: end """
 
 
@@ -1445,7 +1721,7 @@ def simulate_faults_along_line(
     net,
     line_id,
     affected_devices,
-    fault_line_on_doubleline_flag,
+    fault_line_on_doubleline_info,
     interval_km=0.25,
     plot_powerflow_flag=False,
 ):
@@ -1533,6 +1809,7 @@ def simulate_faults_along_line(
                     ]
                 },
             )
+            pp.runpp(net)
             # after adding the fault bus into the network, simulate a three-phase short circuit at the temporary bus
             sc.calc_sc(
                 net,
@@ -1540,6 +1817,7 @@ def simulate_faults_along_line(
                 bus=temp_bus,
                 branch_results=True,
                 return_all_currents=True,
+                use_pre_fault_voltage=True,
             )
             if plot_powerflow_flag:
                 plot_short_circuit_results(net, line_id)
@@ -1552,7 +1830,7 @@ def simulate_faults_along_line(
                     affected_devices[device],
                     affected_devices[device].bus_id,
                     temp_bus,
-                    fault_line_on_doubleline_flag,
+                    fault_line_on_doubleline_info,
                 )
                 if impedance is None:
                     # print(
@@ -1628,6 +1906,7 @@ def simulate_faults_along_line(
                     "angle_sensed": angle_sensed,
                     "zone_sensed": zone_sensed,
                     "same_zone_detection": zone_calculated == zone_sensed,
+                    # "ip": ip,
                 }
                 # Append individual device data to the main list (flattened)
                 device_data_dict.append(device_data)
@@ -1674,19 +1953,25 @@ def simulate_faults_for_all_lines(
     for line_id in net.line.index:
         if net.line.at[line_id, "in_service"]:  # Only consider in-service lines
             print(f"Simulating faults along line {line_id}")
+            # interval_km = net.line.at[line_id, "length_km"] / 2
 
             # Assuming that affected devices are consistent along the line
             affected_devices = find_affected_devices(line_id, protection_devices, net)
 
+            fault_line_on_doubleline_info = {}
             # Set the flag if the current line_id is part of any double-line pair
-            fault_line_on_doubleline_flag = line_id in double_line_ids
+            fault_line_on_doubleline_info["flag"] = line_id in double_line_ids
+            fault_line_on_doubleline_info["line_info"] = (
+                net.line.at[line_id, "from_bus"],
+                net.line.at[line_id, "to_bus"],
+            )
 
             # Simulate faults along the line
             device_data = simulate_faults_along_line(
                 net,
                 line_id,
                 affected_devices,
-                fault_line_on_doubleline_flag,
+                fault_line_on_doubleline_info,
                 interval_km,
             )
 
@@ -1713,15 +1998,16 @@ def simulate_faults_for_all_lines(
             .sort_index()
         )
         # create summary
-        summary_df = pd.DataFrame(
-            {
-                **{
-                    f"Device {device_id}": device_sum.get(device_id, 0)
-                    for device_id in device_sum.index
-                },
-                "Total_fault_cases": [total_fault_cases],
-                "Total_cases_analyzed": [total_cases_analyzed],
-            }
+        summary_data = {
+            **{
+                f"Device {device_id}": device_sum.get(device_id, 0)
+                for device_id in device_sum.index
+            },
+            "Total_fault_cases": total_fault_cases,
+            "Total_cases_analyzed": total_cases_analyzed,
+        }
+        summary_df = pd.DataFrame.from_dict(
+            summary_data, orient="index", columns=["Value"]
         )
         return summary_df
 
@@ -2092,24 +2378,52 @@ def plot_short_circuit_results(net, figure_number):
 """end: plot the short circuit simulation power flow"""
 
 
-"""start: the output writer for our usecase"""
-import pandapower.timeseries as ts
+"""start: the output controller for our usecase"""
+
+from pandapower.control.basic_controller import Controller
 
 
-class CustomOutputWriter(ts.OutputWriter):
-    def __init__(self, net, output_dir, file_type):
-        super().__init__(net)
-        self.output_dir = output_dir
-        self.file_type = file_type
+class FaultSimulationController(Controller):
+    def __init__(
+        self,
+        net,
+        protection_devices,
+        interval_km=0.25,
+        show_sum_up_information_flag=True,
+        **kwargs,
+    ):
+        super().__init__(net, **kwargs)
+        self.protection_devices = protection_devices
+        self.interval_km = interval_km
+        self.show_sum_up_information_flag = show_sum_up_information_flag
+        device_index = list(protection_devices.keys())
+        summary_indices = [f"Device {device}" for device in device_index] + [
+            "Total_fault_cases",
+            "Total_cases_analyzed",
+        ]
+        # Create the fault_summary DataFrame with zeros
+        self.fault_summary = pd.DataFrame(0, index=summary_indices, columns=["Value"])
+        net.custom = self.fault_summary
+        self.last_time_step = None
 
-    def save_results(self, Protection_devices):
-        """
-        Save fault simulation results for the current time step.
-        """
-        protection_data = simulate_faults_for_all_lines(self.net, Protection_devices)
-        protection_df = pd.DataFrame(protection_data)
-        output_file = os.path.join(self.output_dir, f"time_step_{time_step}.xlsx")
-        protection_df.to_excel(output_file, index=False)
+    def write_to_net(self, net):
+        net.custom = self.fault_summary
+
+    def time_step(self, net, time):
+        self.fault_summary = simulate_faults_for_all_lines(
+            net,
+            self.protection_devices,
+            self.interval_km,
+            self.show_sum_up_information_flag,
+        )
+        self.last_time_step = time
+        self.write_to_net(net)
+
+    def control_step(self):
+        # Simulate faults and update the `custom` attribute
+
+        if not isinstance(self.fault_summary, pd.DataFrame):
+            raise ValueError("Simulation results must be a pandas DataFrame.")
 
 
-"""end: the output writer for our usecase"""
+"""end: the output controller for our usecase"""
