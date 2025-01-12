@@ -396,7 +396,7 @@ def create_network_without_BE(excel_file):
             vm_pu=external_grid_data.at[idx, "vm_pu"],
             va_degree=external_grid_data.at[idx, "va_degree"],
             name=external_grid_data.at[idx, "name"],
-            s_sc_max_mva=5e9,
+            s_sc_max_mva=5e3,
             rx_max=0.1,
         )
 
@@ -477,7 +477,7 @@ def create_network_without_AB1(excel_file):
             vm_pu=external_grid_data.at[idx, "vm_pu"],
             va_degree=external_grid_data.at[idx, "va_degree"],
             name=external_grid_data.at[idx, "name"],
-            s_sc_max_mva=5e9,
+            s_sc_max_mva=5e3,
             rx_max=0.1,
         )
 
@@ -494,6 +494,7 @@ def create_network_without_AB1(excel_file):
             name=wind_gen_data.at[idx, "name"],
             generator_type="current_source",
             k=1.2,
+            kappa=1.2,
         )
 
     print(net)
