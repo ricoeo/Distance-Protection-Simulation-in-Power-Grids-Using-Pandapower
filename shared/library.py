@@ -65,6 +65,7 @@ def create_network(excel_file):
             max_i_ka=line_data.loc[idx, "max_i_ka"],
             parallel=line_data.loc[idx, "parallel"],
         )
+
     # loads
     for idx in load_data.index:
         pp.create_load(
@@ -82,7 +83,7 @@ def create_network(excel_file):
             vm_pu=external_grid_data.at[idx, "vm_pu"],
             va_degree=external_grid_data.at[idx, "va_degree"],
             name=external_grid_data.at[idx, "name"],
-            s_sc_max_mva=5e9,
+            s_sc_max_mva=5e3,
             rx_max=0.1,
         )
 
@@ -99,6 +100,7 @@ def create_network(excel_file):
             name=wind_gen_data.at[idx, "name"],
             generator_type="current_source",
             k=1.2,
+            kappa=1.2,
         )
 
     print(net)
@@ -1953,11 +1955,11 @@ def simulate_faults_for_all_lines(
 
     for line_id in net.line.index:
         if net.line.at[line_id, "in_service"]:  # Only consider in-service lines
-            print(f"Simulating faults along line {line_id}")
+            # print(f"Simulating faults along line {line_id}")
             # interval_km = net.line.at[line_id, "length_km"] / 2
 
             # Assuming that affected devices are consistent along the line
-            affected_devices = find_affected_devices(line_id, protection_devices, net)
+            affected_devices = protection_devices
 
             fault_line_on_doubleline_info = {}
             # Set the flag if the current line_id is part of any double-line pair
@@ -1988,9 +1990,11 @@ def simulate_faults_for_all_lines(
         protection_fault_case_df = protection_df.loc[
             ~protection_df["same_zone_detection"]
         ]
+
         # calcualte total faults and cases
         total_fault_cases = len(protection_fault_case_df)
         total_cases_analyzed = len(protection_df)
+
         # count fault cases per device
         device_sum = (
             protection_fault_case_df["Device ID"]
@@ -1998,12 +2002,44 @@ def simulate_faults_for_all_lines(
             .reindex(all_device_ids, fill_value=0)
             .sort_index()
         )
+        # Create zone ranking mapping
+        zone_rank = {"Zone 1": 0, "Zone 2": 1, "Zone 3": 2, "Out of Zone": 3}
+        # Add columns for underreach and overreach conditions
+        protection_fault_case_df["zone_calculated_rank"] = protection_fault_case_df[
+            "zone_calculated"
+        ].map(zone_rank)
+        protection_fault_case_df["zone_sensed_rank"] = protection_fault_case_df[
+            "zone_sensed"
+        ].map(zone_rank)
+
+        # Count cases in primary and backup zones
+        primary_zone_cases = (
+            protection_fault_case_df["zone_calculated"] == "Zone 1"
+        ).sum()
+        backup_zone_cases = (
+            protection_fault_case_df["zone_calculated"].isin(["Zone 2", "Zone 3"])
+        ).sum()
+
+        # Calculate underreach and overreach conditions
+        underreach_cases = (
+            protection_fault_case_df["zone_calculated_rank"]
+            < protection_fault_case_df["zone_sensed_rank"]
+        ).sum()
+        overreach_cases = (
+            protection_fault_case_df["zone_calculated_rank"]
+            > protection_fault_case_df["zone_sensed_rank"]
+        ).sum()
+
         # create summary
         summary_data = {
             **{
                 f"Device {device_id}": device_sum.get(device_id, 0)
                 for device_id in device_sum.index
             },
+            "Underreach_cases": underreach_cases,
+            "Overreach_cases": overreach_cases,
+            "Primary_fail_cases": primary_zone_cases,
+            "Backup_fail_cases": backup_zone_cases,
             "Total_fault_cases": total_fault_cases,
             "Total_cases_analyzed": total_cases_analyzed,
         }
@@ -2399,6 +2435,10 @@ class FaultSimulationController(Controller):
         self.show_sum_up_information_flag = show_sum_up_information_flag
         device_index = list(protection_devices.keys())
         summary_indices = [f"Device {device}" for device in device_index] + [
+            "Underreach_cases",
+            "Overreach_cases",
+            "Primary_fail_cases",
+            "Backup_fail_cases",
             "Total_fault_cases",
             "Total_cases_analyzed",
         ]

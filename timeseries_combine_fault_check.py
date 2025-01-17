@@ -7,7 +7,7 @@ from shared.protection_border_adjust import (
 # Read the data from the Excel file
 excel_file = "grid_data_sheet.xlsx"
 
-net = create_network_without_BE(excel_file)
+net = create_network(excel_file)
 
 Protection_devices = setup_protection_zones(net, excel_file)
 # # import the previous measurement data, always check it to the up-to-date measurement data
@@ -27,52 +27,48 @@ fault_sim_controller = FaultSimulationController(
 )
 
 
-# specify the result save folder
-output_dir = "timeseries_results_1312_1"
-os.makedirs(output_dir, exist_ok=True)
+# specify the base result save folder
+base_output_dir = "./timeseries_results"
 
-# create output writer
-ow = ts.OutputWriter(
-    net_with_dynamic_profile, output_path=output_dir, output_file_type=".xlsx"
-)
-ow.log_variable("res_load", "p_mw")
-# ow.log_variable("res_load", "q_mvar")
-ow.log_variable("res_sgen", "p_mw")
-ow.log_variable("custom", "Value")
+# create base output directory if it does not exist
+os.makedirs(base_output_dir, exist_ok=True)
 
-# the default logger is disabled
-ow.remove_log_variable("res_line", "loading_percent")
-ow.remove_log_variable("res_bus", "vm_pu")
+# run the timeseries calculations, save results periodically
+ONE_YEAR_DATAPOINT = 365 * 24 * 6
+time_steps = list(range(0, ONE_YEAR_DATAPOINT))
+save_interval = 100  # save results after every 100 steps
+folder_index = math.ceil(ONE_YEAR_DATAPOINT * 1.0 / save_interval)
 
+for i in range(0, folder_index):
+    # Create a new folder for each batch of results
+    if i < 4:
+        continue
+    output_dir = os.path.join(base_output_dir, f"results_{i}")
+    os.makedirs(output_dir, exist_ok=True)
 
-# run the timeseries calculations, it will take quite long so adjusting the time_steps as need
-ts.run_timeseries(
-    net_with_dynamic_profile,
-    time_steps=list(range(0, 5)),
-    continue_on_divergence=True,
-)
+    # Create output writer for each batch
+    ow = ts.OutputWriter(
+        net_with_dynamic_profile, output_path=output_dir, output_file_type=".xlsx"
+    )
+    ow.log_variable("res_load", "p_mw")
+    ow.log_variable("res_load", "q_mvar")
+    ow.log_variable("res_sgen", "p_mw")
+    ow.log_variable("custom", "Value")
 
-# specify the result save folder
-output_dir = "timeseries_results_1312_2"
-os.makedirs(output_dir, exist_ok=True)
+    # Disable the default logger
+    ow.remove_log_variable("res_line", "loading_percent")
+    ow.remove_log_variable("res_bus", "vm_pu")
 
-# create output writer
-ow = ts.OutputWriter(
-    net_with_dynamic_profile, output_path=output_dir, output_file_type=".xlsx"
-)
-ow.log_variable("res_load", "p_mw")
-# ow.log_variable("res_load", "q_mvar")
-ow.log_variable("res_sgen", "p_mw")
-ow.log_variable("custom", "Value")
-
-# the default logger is disabled
-ow.remove_log_variable("res_line", "loading_percent")
-ow.remove_log_variable("res_bus", "vm_pu")
-
-
-# run the timeseries calculations, it will take quite long so adjusting the time_steps as need
-ts.run_timeseries(
-    net_with_dynamic_profile,
-    time_steps=list(range(5, 10)),
-    continue_on_divergence=True,
-)
+    if i != folder_index - 1:
+        # Run timeseries calculations for the current batch
+        ts.run_timeseries(
+            net_with_dynamic_profile,
+            time_steps=time_steps[i * save_interval : (i + 1) * save_interval],
+            continue_on_divergence=True,
+        )
+    else:
+        ts.run_timeseries(
+            net_with_dynamic_profile,
+            time_steps=time_steps[i * save_interval :],
+            continue_on_divergence=True,
+        )

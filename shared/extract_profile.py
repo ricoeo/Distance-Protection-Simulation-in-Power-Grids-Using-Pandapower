@@ -118,7 +118,7 @@ def generate_wind_turbine_power_output(wind_speeds):
 
     # Constants for power calculation
     air_density = 1.225  # kg/m³ (air density at sea level)
-    rotor_diameter = 100  # meters
+    rotor_diameter = 56  # meters
     swept_area = np.pi * (rotor_diameter / 2) ** 2  # m²
 
     # Extract wind speed values and timestamps
@@ -148,130 +148,9 @@ def generate_wind_turbine_power_output(wind_speeds):
     return output_df
 
 
-def load_profiles_old(net):
-    # Define the time steps
-    samples_per_month = 31 * 24 * 60 // 15
-
-    """load the load p,q profile from simbench dataset"""
-    grid_code = "1-HV-mixed--0-sw"
-    profiles = sb.get_absolute_values(
-        sb.get_simbench_net(grid_code), profiles_instead_of_study_cases=True
-    )
-
-    load_p = profiles[("load", "p_mw")]
-    load_q = profiles[("load", "q_mvar")]
-    load_proportion_1 = 2 / 5
-    load_proportion_2 = 2 / 5
-    load_proportion_3 = 1 / 5
-    # Extract the first month's data
-    one_month_data = load_p.iloc[:samples_per_month].sum(
-        axis=1
-    )  # Sum the groups with their respective proportions
-    load_1_p = one_month_data * load_proportion_1
-    load_2_p = one_month_data * load_proportion_2
-    load_3_p = one_month_data * load_proportion_3
-    load_p_sum = pd.DataFrame(
-        {"load_1": load_1_p, "load_2": load_2_p, "load_3": load_3_p}
-    )
-
-    one_month_data = load_q.iloc[:samples_per_month].sum(
-        axis=1
-    )  # Sum the groups with their respective proportions
-    load_1_q = one_month_data * load_proportion_1
-    load_2_q = one_month_data * load_proportion_2
-    load_3_q = one_month_data * load_proportion_3
-    load_q_sum = pd.DataFrame(
-        {"load_1": load_1_q, "load_2": load_2_q, "load_3": load_3_q}
-    )
-
-    """create datasource and initialize controller"""
-    ds_load = DFData(load_p_sum)
-    ConstControl(
-        net,
-        element="load",
-        element_index=net.load.index[0],
-        variable="p_mw",
-        data_source=ds_load,
-        profile_name="load_1",
-    )
-    ConstControl(
-        net,
-        element="load",
-        element_index=net.load.index[1],
-        variable="p_mw",
-        data_source=ds_load,
-        profile_name="load_2",
-    )
-    ConstControl(
-        net,
-        element="load",
-        element_index=net.load.index[2],
-        variable="p_mw",
-        data_source=ds_load,
-        profile_name="load_3",
-    )
-    ds_load = DFData(load_q_sum)
-    ConstControl(
-        net,
-        element="load",
-        element_index=net.load.index[0],
-        variable="q_mvar",
-        data_source=ds_load,
-        profile_name="load_1",
-    )
-    ConstControl(
-        net,
-        element="load",
-        element_index=net.load.index[1],
-        variable="q_mvar",
-        data_source=ds_load,
-        profile_name="load_2",
-    )
-    ConstControl(
-        net,
-        element="load",
-        element_index=net.load.index[2],
-        variable="q_mvar",
-        data_source=ds_load,
-        profile_name="load_3",
-    )
-
-    """add some noise to the wind generation data"""
-    df = (
-        pd.DataFrame(
-            np.random.normal(1.0, 0.1, size=(samples_per_month, len(net.sgen.index))),
-            index=list(range(samples_per_month)),
-            columns=net.sgen.index,
-        )
-        * net.sgen.p_mw.values
-    )
-
-    """create datasource from it"""
-    ds_sgen = DFData(df)
-
-    """initialising ConstControl controller to update values"""
-    ConstControl(
-        net,
-        element="sgen",
-        element_index=net.sgen.index,
-        variable="p_mw",
-        data_source=ds_sgen,
-        profile_name=net.sgen.index,
-    )
-
-    """create output writer"""
-    ow = ts.OutputWriter(net, output_path="./", output_file_type=".xlsx")
-    ow.log_variable("res_load", "p_mw")
-    ow.log_variable("res_load", "q_mvar")
-    ow.log_variable("res_sgen", "p_mw")
-
-    print(net)
-    return net
-
-
 # Define start and end dates
 start_date = "2023-01-01"
-end_date = "2023-02-01"
+end_date = "2024-01-01"
 sample_interval_load = "15min"
 sample_interval_wind = "10min"
 
@@ -307,6 +186,7 @@ def load_profiles(net):
     one_month_data_origin = load_p.iloc[:num_samples].sum(
         axis=1
     )  # Sum the groups with their respective proportions
+    one_month_data_origin = one_month_data_origin * 5.4  # Normalization
     one_month_data_origin.index = datetime_index
     # resample load profile to align with the wind data
     if pd.to_timedelta(sample_interval_wind) < pd.to_timedelta(sample_interval_load):
@@ -446,26 +326,26 @@ def load_profiles(net):
     # print(wind_speed_sgn6.drop_nulls().shape) #this library implementation sometimes very critical of the float number
     """a simple way to get the real and imaginary power outputs for a wind turbine based on input wind speeds"""
     gen_mw_sgn0 = (
-        generate_wind_turbine_power_output(wind_speed_sgn0) * 4
-    )  # assuming 4 turbines in this wind farm
+        generate_wind_turbine_power_output(wind_speed_sgn0) * 15
+    )  # assuming 15 turbines in this wind farm
     gen_mw_sgn1 = (
-        generate_wind_turbine_power_output(wind_speed_sgn1) * 11
-    )  # assuming 11 turbines in this wind farm
+        generate_wind_turbine_power_output(wind_speed_sgn1) * 35
+    )  # assuming 35 turbines in this wind farm
     gen_mw_sgn2 = (
-        generate_wind_turbine_power_output(wind_speed_sgn2) * 11
-    )  # assuming 11 turbines in this wind farm
+        generate_wind_turbine_power_output(wind_speed_sgn2) * 35
+    )  # assuming 35 turbines in this wind farm
     gen_mw_sgn3 = (
-        generate_wind_turbine_power_output(wind_speed_sgn3) * 6
-    )  # assuming 6 turbines in this wind farm
+        generate_wind_turbine_power_output(wind_speed_sgn3) * 20
+    )  # assuming 20 turbines in this wind farm
     gen_mw_sgn4 = (
-        generate_wind_turbine_power_output(wind_speed_sgn4) * 2
-    )  # assuming 2 turbines in this wind farm
+        generate_wind_turbine_power_output(wind_speed_sgn4) * 10
+    )  # assuming 10 turbines in this wind farm
     gen_mw_sgn5 = (
-        generate_wind_turbine_power_output(wind_speed_sgn5) * 16
-    )  # assuming 16 turbines in this wind farm
+        generate_wind_turbine_power_output(wind_speed_sgn5) * 50
+    )  # assuming 50 turbines in this wind farm
     gen_mw_sgn6 = (
-        generate_wind_turbine_power_output(wind_speed_sgn6) * 1
-    )  # assuming 1 turbines in this wind farm
+        generate_wind_turbine_power_output(wind_speed_sgn6) * 5
+    )  # assuming 5 turbines in this wind farm
     # print(gen_mw_sgn0.info())
     # print(gen_mw_sgn1.info())
     # print(gen_mw_sgn2.info())

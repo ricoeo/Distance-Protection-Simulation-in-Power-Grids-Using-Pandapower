@@ -3,7 +3,7 @@ from shared.library import *
 # Read the data from the Excel file
 excel_file = "grid_data_sheet.xlsx"
 
-net = create_network_without_BE(excel_file)
+net = create_network(excel_file)
 
 # set the protection zone setting
 Protection_devices = setup_protection_zones(net, excel_file)
@@ -15,4 +15,4 @@ protection_data = simulate_faults_for_all_lines(net, Protection_devices)
 protection_df = pd.DataFrame(protection_data)
 
 # write to Excel file
-protection_df.to_excel("fault_detection_check_BE.xlsx", index=False)
+protection_df.to_excel("fault_detection_check_0113.xlsx", index=False)

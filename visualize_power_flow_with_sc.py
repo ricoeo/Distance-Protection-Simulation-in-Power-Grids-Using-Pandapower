@@ -4,7 +4,7 @@ from shared.library import *
 def simulate_faults_for_half_line_position(
     net, protection_devices, plot_power_flag=False
 ):
-    """Simulate faults along all in-service lines and collect data for protection devices."""
+    """Simulate faults at half position of all in-service lines and collect data for ploting short circuit current."""
     # Identify double lines by finding bus pairs with multiple lines in service
     double_line_pairs = (
         net.line[net.line["in_service"]]
@@ -18,16 +18,21 @@ def simulate_faults_for_half_line_position(
             print(f"Simulating faults along line {line_id}")
 
             # Assuming that affected devices are consistent along the line
-            affected_devices = find_affected_devices(line_id, protection_devices, net)
-            # Set the flag if the current line_id is part of any double-line pair
-            fault_line_on_doubleline_flag = line_id in double_line_ids
+            affected_devices = protection_devices
 
+            fault_line_on_doubleline_info = {}
+            # Set the flag if the current line_id is part of any double-line pair
+            fault_line_on_doubleline_info["flag"] = line_id in double_line_ids
+            fault_line_on_doubleline_info["line_info"] = (
+                net.line.at[line_id, "from_bus"],
+                net.line.at[line_id, "to_bus"],
+            )
             # Simulate faults along the line
             simulate_faults_along_line(
                 net,
                 line_id,
                 affected_devices,
-                fault_line_on_doubleline_flag,
+                fault_line_on_doubleline_info,
                 half_line_position,
                 plot_power_flag,
             )
@@ -40,7 +45,7 @@ def simulate_faults_for_half_line_position(
 excel_file = "grid_data_sheet.xlsx"
 
 # a new create network function is written
-net = create_network_without_BE(excel_file)
+net = create_network(excel_file)
 
 Protection_devices = setup_protection_zones(net, excel_file)
 
