@@ -1,6 +1,122 @@
 from shared.library import *
 
 
+def simulate_faults_along_line_for_test(
+    net,
+    line_id,
+    affected_devices,
+    fault_line_on_doubleline_info,
+    interval_km=0.25,
+    plot_powerflow_flag=False,
+):
+    """Simulate faults along a line by adding temporary buses at specified intervals."""
+    device_data_dict = []
+    # Make original line out of service
+    line = net.line.loc[line_id]
+    net.line.at[line_id, "in_service"] = False
+    # evenly distribute the faults in the line
+    line_length = line.length_km
+    num_faults = int(line_length / interval_km) - 1
+    # temporally change some parameters of the protection devices due to the fault. for simple calculation
+    matching_devices, saved_ids = filter_and_save_devices_by_line_id(
+        affected_devices, line_id
+    )
+    # if the fault bus needs to be plotted, the geodata is neccessary unless it will raise index Error
+    start_geo_x, start_geo_y = (
+        net.bus_geodata.at[net.line.at[line_id, "from_bus"], "x"],
+        net.bus_geodata.at[net.line.at[line_id, "from_bus"], "y"],
+    )
+    end_geo_x, end_geo_y = (
+        net.bus_geodata.at[net.line.at[line_id, "to_bus"], "x"],
+        net.bus_geodata.at[net.line.at[line_id, "to_bus"], "y"],
+    )
+    # if the sensed results are different from the calculated results, it is recorded
+    # sense_wrong_dict = {}
+    if num_faults > 0:
+
+        fault_locations = [interval_km * i for i in range(1, num_faults)] or [
+            line_length / 2
+        ]
+
+        for fault_location in fault_locations:
+            # Create a temporary bus at fault location
+            temp_bus = pp.create_bus(
+                net,
+                vn_kv=HV,
+                type="n",
+                name="fault_bus",
+                geodata=(
+                    start_geo_x
+                    + (end_geo_x - start_geo_x) * float(fault_location) / line_length,
+                    start_geo_y
+                    + (end_geo_y - start_geo_y) * float(fault_location) / line_length,
+                ),
+            )
+            # Split the line at the fault location,copy all the other parameters of the original line to the new line
+            temp_line_part1 = pp.create_line_from_parameters(
+                net,
+                from_bus=line.from_bus,
+                to_bus=temp_bus,
+                length_km=fault_location,
+                in_service=True,
+                **{
+                    attr: line[attr]
+                    for attr in line.index
+                    if attr
+                    not in [
+                        "from_bus",
+                        "to_bus",
+                        "length_km",
+                        "name",
+                        "std_type",
+                        "in_service",
+                    ]
+                },
+            )
+            temp_line_part2 = pp.create_line_from_parameters(
+                net,
+                from_bus=temp_bus,
+                to_bus=line.to_bus,
+                length_km=line_length - fault_location,
+                in_service=True,
+                **{
+                    attr: line[attr]
+                    for attr in line.index
+                    if attr
+                    not in [
+                        "from_bus",
+                        "to_bus",
+                        "length_km",
+                        "name",
+                        "std_type",
+                        "in_service",
+                    ]
+                },
+            )
+            pp.runpp(net)
+            # after adding the fault bus into the network, simulate a three-phase short circuit at the temporary bus
+            sc.calc_sc(
+                net,
+                fault="3ph",
+                bus=temp_bus,
+                branch_results=True,
+                return_all_currents=True,
+                use_pre_fault_voltage=True,
+            )
+            if plot_powerflow_flag:
+                generate_short_circuit_tikz_overlay(net, line_id, "original_net.txt")
+            # change the parameters of the protection device
+            temporally_update_associated_line_id(matching_devices, temp_bus, net)
+
+            recover_associated_line_id(matching_devices, saved_ids)
+            # Remove temporary buses and associated lines after analysis.
+            net.line.drop(temp_line_part1, inplace=True)
+            net.line.drop(temp_line_part2, inplace=True)
+            net.bus.drop(temp_bus, inplace=True)
+
+    return device_data_dict
+
+
 def simulate_faults_for_half_line_position(
     net, protection_devices, plot_power_flag=False
 ):
@@ -28,7 +144,7 @@ def simulate_faults_for_half_line_position(
                 net.line.at[line_id, "to_bus"],
             )
             # Simulate faults along the line
-            simulate_faults_along_line(
+            simulate_faults_along_line_for_test(
                 net,
                 line_id,
                 affected_devices,

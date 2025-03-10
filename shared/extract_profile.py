@@ -61,7 +61,7 @@ def generate_wind_turbine_power_output(wind_speeds):
         Ce is the power coefficient at the given wind speed.
 
     The imaginary power output is defined as:
-        P_imaginary = 0.5 * P_real
+        P_imaginary = 0.3 * P_real
 
     Parameters:
     -----------

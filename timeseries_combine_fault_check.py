@@ -41,7 +41,7 @@ folder_index = math.ceil(ONE_YEAR_DATAPOINT * 1.0 / save_interval)
 
 for i in range(0, folder_index):
     # Create a new folder for each batch of results
-    if i < 4:
+    if i < 32:
         continue
     output_dir = os.path.join(base_output_dir, f"results_{i}")
     os.makedirs(output_dir, exist_ok=True)

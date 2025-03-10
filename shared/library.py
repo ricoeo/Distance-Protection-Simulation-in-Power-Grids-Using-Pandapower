@@ -2088,7 +2088,7 @@ def create_current_dict(net):
         net: pandapower network
 
     Returns:
-        current_dict: Dictionary with bus_id as key and
+        current_dict: Dictionary with line_id as key and
                        a dictionary containing current magnitude and direction as value.
     """
     current_dict = {}
@@ -2408,8 +2408,332 @@ def plot_short_circuit_results(net, figure_number):
     # Show plot with legend
     ax.legend()
     # To save figures into the output_dir
-    # plt.savefig(os.path.join(output_dir, f'sc_plot_{figure_number}.png'))  # Save as PNG
+    plt.savefig(os.path.join(output_dir, f"sc_plot_{figure_number}.png"))  # Save as PNG
     plt.show(block=False)
+
+
+def generate_short_circuit_tikz_overlay(
+    net, fault_line_id, filename="short_circuit_overlay.tex"
+):
+    """
+    Generates a TikZ snippet with voltage-colored bus markers and current arrows
+    if the default plotting figure is not what you want.
+    The function is to write the plotting onto your existing TikZ diagram.
+
+    """
+
+    # Make sure results are available
+    if net.res_bus_sc.empty or net.res_line_sc.empty:
+        raise ValueError(
+            "Short circuit results are missing. "
+            "Please run the short circuit simulation before generating TikZ overlay."
+        )
+
+    voltage_dict = create_voltage_dict(net)
+    current_dict = create_current_dict(net)
+
+    # Create color maps
+    voltage_cmap = plt.get_cmap("Blues")  # Light blue to dark blue
+    # current_cmap = plt.get_cmap("cividis")  # Light yellow to dark yellow, not used anymore
+
+    # Normalize voltage data for color mapping
+    min_voltage = min(voltage_dict.values())
+    max_voltage = max(voltage_dict.values())
+    voltage_norm = plt.Normalize(vmin=min_voltage, vmax=max_voltage)
+
+    # Normalize current data for color mapping
+    current_values = [info["current"] for info in current_dict.values()]
+    min_current = min(current_values)
+    max_current = max(current_values)
+
+    # Helper function to convert an RGBA color into a TikZ-friendly format
+
+    def rgba_to_rgb(rgba):
+        """
+        Converts an (r,g,b,a) tuple to a TikZ-friendly (r,g,b) tuple.
+        """
+
+        return f"{rgba[0],rgba[1],rgba[2]}"
+
+    # -------------------------------------------------------------------------
+    # Generate the TikZ snippet
+
+    with open(filename, "w", encoding="utf-8") as f:
+        # f.write("% Automatically generated short-circuit overlay\n")
+        # f.write("% Use \\input{" + filename + "} in your main TikZ picture.\n\n")
+
+        # Define custom colors for each bus based on its voltage
+        for bus_id, voltage in voltage_dict.items():
+            # Convert voltage to color
+            color = voltage_cmap(voltage_norm(voltage))  # RGBA
+            # tikz_color_def = rgba_to_rgb(color)  # Convert to TikZ color definition
+            # Create a unique color name for each bus, e.g. "busVoltageColor1"
+            color_name = f"busVoltageColor{bus_id}"
+            # f.write(f"\\definecolor{{{color_name}}}{{rgb}}{{{tikz_color_def}}}\n")
+            f.write(
+                f"\\definecolor{{{color_name}}}{{rgb}}{{{color[0]},{color[1]},{color[2]}}}\n"
+            )
+        f.write("\\definecolor{transmissionlineColor}{RGB}{163, 108, 101}\n")
+        f.write("\n")
+
+        # Draw the bus circles with voltage-based fill color
+        # You must ensure that your LaTeX diagram has \node (A) at ..., \node (B) at ...define that mapping:
+        bus_id_to_label = {
+            0: "A",
+            1: "B",
+            2: "C",
+            3: "D",
+            4: "E",
+            5: "F",
+            6: "CD5",
+            7: "CD4",
+            8: "CD3",
+            9: "CD2",
+            10: "CD1",
+            11: "fault_bus",
+            # etc. or read from net.bus table
+        }
+        line_paths = {
+            0: r"(Bleft2) --++(0,3)",
+            1: r"(B) --++(0,3)",
+            2: r"(E) --++(0,1.4) --++(2.4,0)--++(0,1.6)",
+            3: r"(B) --++(0,-12)--++(-3,0) --++(0,-1)",
+            4: r"(E_right) --++(0,1)--++(3.5,0)--++(0,-1)",
+            5: r"(F_right) --++(0,1)--++(1.5,0) --++(0,3)",
+            6: r"(CD5.center) --++(0,-1)--++(3,0)--++(C)",
+            7: r"(CD4.center) --++(0,-1)",
+            8: r"(CD3.center) --++(0,-1)",
+            9: r"(CD2.center) --++(0,-1)",
+            10: r"(CD1.center)--++(0,-1)",
+            11: r"(D.center) --++(0,-3)",
+            12: r"(E) --++(D)",
+            13: r"(F) --++(0,1)--++(-2,0) --++(0,3)",
+            14: rf"({bus_id_to_label.get(net.line.loc[fault_line_id].from_bus)}) --++(fault_bus)",
+            15: rf"(fault_bus) --++({bus_id_to_label.get(net.line.loc[fault_line_id].to_bus)})",
+        }
+        # Nominal starting node for each line (to decide arrow direction)
+        line_nominal_start = {
+            0: 1,
+            1: 1,
+            2: 4,
+            3: 1,
+            4: 4,
+            5: 5,
+            6: 6,
+            7: 7,
+            8: 8,
+            9: 9,
+            10: 10,
+            11: 3,
+            12: 4,
+            13: 5,
+            14: net.line.loc[fault_line_id].from_bus,
+            15: 11,
+        }
+
+        for bus_id, voltage in voltage_dict.items():
+            # figure out the bus label
+            bus_label = bus_id_to_label.get(bus_id, f"bus{bus_id}")
+            color_name = f"busVoltageColor{bus_id}"
+            # Adjust the positioning based on the bus label
+            if bus_label == "A":
+                f.write(
+                    rf"\fill[draw=black,fill={color_name}] "
+                    rf"({bus_label}) circle (3pt) "
+                    rf"node[below,yshift=-2pt]{{\tiny {voltage:.2f} pu}};"
+                    "\n"
+                )
+                f.write(
+                    rf"\fill[draw=black,fill={color_name}] "
+                    rf"(Aleft) circle (3pt) node[below,yshift=-2pt]{{}};"
+                    "\n"
+                )
+                f.write(
+                    rf"\fill[draw=black,fill={color_name}] "
+                    rf"(Aright1) circle (3pt) node[below,yshift=-2pt]{{}};"
+                    "\n"
+                )
+                f.write(
+                    rf"\fill[draw=black,fill={color_name}] "
+                    rf"(Aright2) circle (3pt) node[below,yshift=-2pt]{{}};"
+                    "\n"
+                )
+            elif bus_label == "B":
+                f.write(
+                    rf"\fill[draw=black,fill={color_name}] "
+                    rf"({bus_label}) circle (3pt) "
+                    rf"node[right,xshift=50pt]{{\tiny {voltage:.2f} pu}};"
+                    "\n"
+                )
+                f.write(
+                    rf"\fill[draw=black,fill={color_name}] "
+                    rf"(Bleft1) circle (3pt) node[right,xshift=50pt]{{}};"
+                    "\n"
+                )
+                f.write(
+                    rf"\fill[draw=black,fill={color_name}] "
+                    rf"(Bleft2) circle (3pt) node[right,xshift=50pt]{{}};"
+                    "\n"
+                )
+                f.write(
+                    rf"\fill[draw=black,fill={color_name}] "
+                    rf"(Bright) circle (3pt) node[right,xshift=50pt]{{}};"
+                    "\n"
+                )
+            elif bus_label == "E":
+                f.write(
+                    rf"\fill[draw=black,fill={color_name}] "
+                    rf"({bus_label}) circle (3pt) "
+                    rf"node[left,xshift=-50pt]{{\tiny {voltage:.2f} pu}};"
+                    "\n"
+                )
+                f.write(
+                    rf"\fill[draw=black,fill={color_name}] "
+                    rf"(Eleft) circle (3pt) node[left,xshift=-50pt]{{}};"
+                    "\n"
+                )
+                f.write(
+                    rf"\fill[draw=black,fill={color_name}] "
+                    rf"(Eright) circle (3pt) node[left,xshift=-50pt]{{}};"
+                    "\n"
+                )
+            elif bus_label == "C":
+                f.write(
+                    rf"\fill[draw=black,fill={color_name}] "
+                    rf"({bus_label}) circle (3pt) "
+                    rf"node[right, below, xshift=7pt, yshift=-2pt]{{\tiny {voltage:.2f} pu}};"
+                    "\n"
+                )
+                f.write(
+                    rf"\fill[draw=black,fill={color_name}] "
+                    rf"(exc) circle (3pt) node[right, below, xshift=7pt, yshift=-2pt]{{}};"
+                    "\n"
+                )
+                f.write(
+                    rf"\fill[draw=black,fill={color_name}] "
+                    rf"(Cright2) circle (3pt) node[right, below, xshift=7pt, yshift=-2pt]{{}};"
+                    "\n"
+                )
+            elif bus_label == "F":
+                f.write(
+                    rf"\fill[draw=black, fill={color_name}] "
+                    rf"({bus_label}) circle (3pt) "
+                    rf"node[right, below, xshift=17pt, yshift=-2pt]{{\tiny {voltage:.2f} pu}};"
+                    "\n"
+                )
+                f.write(
+                    rf"\fill[draw=black, fill={color_name}] "
+                    rf"(Fright) circle (3pt) node[right, below, xshift=17pt]{{}};"
+                    "\n"
+                )
+            elif bus_label == "D":
+                f.write(
+                    rf"\fill[draw=black,fill={color_name}] "
+                    rf"({bus_label}) circle (3pt) "
+                    rf"node[left, below, xshift=-25pt, yshift=-2pt]{{\tiny {voltage:.2f} pu}};"
+                    "\n"
+                )
+            elif bus_label == "CD1":
+                f.write(
+                    rf"\fill[draw=black,fill={color_name}] "
+                    rf"({bus_label}) circle (3pt) "
+                    rf"node[right]{{\tiny {voltage:.2f} pu}};"
+                    "\n"
+                )
+            elif bus_label == "CD2":
+                f.write(
+                    rf"\fill[draw=black,fill={color_name}] "
+                    rf"({bus_label}) circle (3pt) "
+                    rf"node[left]{{\tiny {voltage:.2f} pu}};"
+                    "\n"
+                )
+            elif bus_label == "CD3":
+                f.write(
+                    rf"\fill[draw=black,fill={color_name}] "
+                    rf"({bus_label}) circle (3pt) "
+                    rf"node[right]{{\tiny {voltage:.2f} pu}};"
+                    "\n"
+                )
+            elif bus_label == "CD4":
+                f.write(
+                    rf"\fill[draw=black,fill={color_name}] "
+                    rf"({bus_label}) circle (3pt) "
+                    rf"node[left]{{\tiny {voltage:.2f} pu}};"
+                    "\n"
+                )
+            elif bus_label == "CD5":
+                f.write(
+                    rf"\fill[draw=black,fill={color_name}] "
+                    rf"({bus_label}) circle (3pt) "
+                    rf"node[right]{{\tiny {voltage:.2f} pu}};"
+                    "\n"
+                )
+            else:
+                # Add a node at the middle of the fault line
+                if fault_line_id in line_paths:
+                    path_str = line_paths[fault_line_id]
+                    f.write(
+                        rf"\path {path_str} node[midway, above] (fault_bus) {{}};" "\n"
+                    )
+                    f.write(
+                        rf"\fill[draw=black,fill={color_name}] "
+                        rf"({bus_label}) circle (3pt) "
+                        rf"node[above]{{\tiny {voltage:.2f} pu}};"
+                        "\n"
+                    )
+        f.write("\n")
+
+        # Draw the current arrows on each line
+        # We vary the thickness by (I / max_current).
+        # We label the midpoint with the current magnitude in kA.
+
+        for line_id, info in current_dict.items():
+            if line_id not in line_paths:
+                print(f"Line {line_id} not found in line_paths. Skipping.")
+                continue
+            current_val = info["current"]
+            arrow_width = 2 + (current_val - min_current) / (
+                max_current - min_current
+            ) * (
+                6 - 2
+            )  # mininal current correspondes to 1.5 pt and maximal current corresponds to 5 pt
+            # Determine the arrow direction based on the nominal start and from_bus
+            nominal_start = line_nominal_start.get(line_id)
+            from_bus, _ = info["direction"]
+            path_str = line_paths[line_id]
+            if from_bus == nominal_start:
+                arrow_option = "-Stealth"
+            else:
+                arrow_option = "Stealth-"
+
+            if line_id in [7, 8, 9, 10]:
+                f.write(
+                    rf"\draw[{arrow_option}, line width={arrow_width}pt, color=transmissionlineColor, "
+                    rf"shorten >=5pt, shorten <=5pt, postaction={{decorate}}, "
+                    rf"decoration={{markings, mark=at position 0.5 with {{\node[xshift = -25pt,current label] "
+                    rf"{{{current_val:.2f} kA}};}}}}] {path_str};"
+                    "\n"
+                )
+            elif line_id == 13:
+                f.write(
+                    rf"\draw[{arrow_option}, line width={arrow_width}pt, color=transmissionlineColor, "
+                    rf"shorten >=5pt, shorten <=5pt, postaction={{decorate}}, "
+                    rf"decoration={{markings, mark=at position 0.55 with {{\node[current label] "
+                    rf"{{{current_val:.2f} kA}};}}}}] {path_str};"
+                    "\n"
+                )
+            else:
+                f.write(
+                    rf"\draw[{arrow_option}, line width={arrow_width}pt, color=transmissionlineColor, "
+                    rf"shorten >=5pt, shorten <=5pt, postaction={{decorate}}, "
+                    rf"decoration={{markings, mark=at position 0.5 with {{\node[current label] "
+                    rf"{{{current_val:.2f} kA}};}}}}] {path_str};"
+                    "\n"
+                )
+
+        # f.write("\n% End of automatically generated overlay\n")
+    # -------------------------------------------------------------------------
+    print(f"TikZ overlay saved to {filename}")
 
 
 """end: plot the short circuit simulation power flow"""
