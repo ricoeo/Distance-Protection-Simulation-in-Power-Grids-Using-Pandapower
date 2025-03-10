@@ -97,7 +97,7 @@ def plot_fault_case_ratios(base_path, frac=0.05):
 # plot_fault_case_ratios("timeseries_results_reference", frac=0.01)
 
 
-def plot_wind_activepower(base_path, frac=0.02):
+def plot_wind_activepower(base_path):
     # the detail is not kept if the plot is possible to read, but if it is possible to read, the peak the vally detail is lost!
     active_power_df = pd.DataFrame()
     i = 0  # Start with results_0
@@ -155,11 +155,94 @@ def plot_wind_activepower(base_path, frac=0.02):
     plt.xticks(xticks, xticklabels, fontsize=PLOT_CONFIG["tick_labelsize"])
     plt.xlabel("Time (Days)", fontsize=PLOT_CONFIG["axis_labelsize"])
     plt.tight_layout()
+    plt.savefig("figure/wind_active_power.pdf", format="pdf")
     plt.show()
 
 
 # Example usage:
-plot_wind_activepower("timeseries_results_reference", frac=0.02)
+# plot_wind_activepower("timeseries_results_reference")
+
+
+def plot_wind_activepower_shorter_period(base_path):
+    # the detail is not kept if the plot is possible to read, but if it is possible to read, the peak the vally detail is lost!
+    active_power_df = pd.DataFrame()
+    i = 0  # Start with results_0
+    while True:
+        folder_name = f"results_{i}"
+        folder_path = os.path.join(base_path, folder_name, "res_sgen")
+
+        if not os.path.exists(folder_path):
+            break  # Stop when a results_* folder is missing
+
+        excel_path = os.path.join(folder_path, "p_mw.xlsx")
+        if os.path.exists(excel_path):
+            # Read the Excel file
+            df = pd.read_excel(excel_path, index_col=0)
+            active_power_df = pd.concat([active_power_df, df], ignore_index=True)
+        i += 1
+    if active_power_df.empty:
+        print("NO Data Found")
+        return
+    active_power_df = active_power_df.iloc[:1441]
+    num_points = len(active_power_df)
+    xticks = list(range(0, num_points, 144))  # Mark every 1 days
+    xticklabels = [f"{i//144}d" for i in xticks]
+    plt.figure(figsize=PLOT_CONFIG["fig_size"])
+    for col in range(active_power_df.shape[1]):
+        smoothed = savgol_filter(active_power_df[col], window_length=51, polyorder=3)
+        if col == 0:
+            plt.plot(
+                smoothed,
+                label="Wind B",
+                linewidth=PLOT_CONFIG["line_width"],
+            )
+        elif col == 1:
+            plt.plot(
+                smoothed,
+                label="Wind C",
+                linewidth=PLOT_CONFIG["line_width"],
+            )
+        elif col == 2:
+            plt.plot(
+                smoothed,
+                label="Wind C-D 1",
+                linewidth=PLOT_CONFIG["line_width"],
+            )
+        elif col == 3:
+            plt.plot(
+                smoothed,
+                label="Wind C-D 2",
+                linewidth=PLOT_CONFIG["line_width"],
+            )
+        elif col == 4:
+            plt.plot(
+                smoothed,
+                label="Wind C-D 3",
+                linewidth=PLOT_CONFIG["line_width"],
+            )
+        elif col == 5:
+            plt.plot(
+                smoothed,
+                label="Wind C-D 4",
+                linewidth=PLOT_CONFIG["line_width"],
+            )
+        elif col == 6:
+            plt.plot(
+                smoothed,
+                label="Wind C-D 5",
+                linewidth=PLOT_CONFIG["line_width"],
+            )
+    plt.xticks(xticks, xticklabels, fontsize=PLOT_CONFIG["tick_labelsize"])
+    plt.yticks(fontsize=PLOT_CONFIG["tick_labelsize"])
+    plt.xlabel("Time (Days)", fontsize=PLOT_CONFIG["axis_labelsize"])
+    plt.ylabel("Wind Farm Active Power (MW)", fontsize=PLOT_CONFIG["axis_labelsize"])
+    plt.legend(fontsize=PLOT_CONFIG["legend_fontsize"])
+    plt.grid(True)
+    plt.savefig("figure/wind_active_power_shorter_period.pdf", format="pdf")
+    plt.show()
+
+
+plot_wind_activepower_shorter_period("timeseries_results_reference")
 
 
 def plot_load_activepower(base_path, frac=0.02):
