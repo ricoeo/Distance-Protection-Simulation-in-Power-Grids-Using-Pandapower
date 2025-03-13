@@ -2673,7 +2673,14 @@ def generate_short_circuit_tikz_overlay(
                 if fault_line_id in line_paths:
                     path_str = line_paths[fault_line_id]
                     f.write(
-                        rf"\path {path_str} node[midway, above] (fault_bus) {{}};" "\n"
+                        rf"\path[postaction={{"
+                        rf"decorate,"
+                        rf"decoration={{"
+                        rf"markings,"
+                        rf"mark=at position 0.5 with {{\node[] (fault_bus) {{}};}}"
+                        rf"}}"
+                        rf"}}] {path_str};"
+                        "\n"
                     )
                     f.write(
                         rf"\fill[draw=black,fill={color_name}] "

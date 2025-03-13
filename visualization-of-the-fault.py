@@ -136,6 +136,8 @@ Protection_devices = setup_protection_zones(net_loadhigh, excel_file)
 
 # Call the function to simulate faults and get protection data
 protection_data_1 = simulate_faults_for_all_lines(net_loadhigh, Protection_devices)
+protection_df_1 = pd.DataFrame(protection_data_1)
+protection_df_1.to_excel("protection_data_1.xlsx")
 protection_data_2 = simulate_faults_for_all_lines(net_loadlow, Protection_devices)
 
 # Convert the list of dictionaries into a DataFrame

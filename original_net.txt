@@ -1,54 +1,54 @@
-\definecolor{busVoltageColor0}{rgb}{0.24816608996539793,0.5618915801614763,0.7709803921568628}
-\definecolor{busVoltageColor1}{rgb}{0.5796078431372549,0.7701960784313725,0.8737254901960784}
-\definecolor{busVoltageColor4}{rgb}{0.30106881968473664,0.6013994617454825,0.7929565551710881}
+\definecolor{busVoltageColor0}{rgb}{0.05021145713187236,0.341760861207228,0.6306036139946175}
+\definecolor{busVoltageColor1}{rgb}{0.31115724721261057,0.6082891195693964,0.7968935024990389}
+\definecolor{busVoltageColor4}{rgb}{0.4120415224913495,0.6771856978085352,0.8362629757785467}
 \definecolor{busVoltageColor2}{rgb}{0.03137254901960784,0.18823529411764706,0.4196078431372549}
-\definecolor{busVoltageColor5}{rgb}{0.4541176470588236,0.7012995001922339,0.8466589773164168}
-\definecolor{busVoltageColor6}{rgb}{0.03137254901960784,0.20447520184544404,0.4437216455209535}
-\definecolor{busVoltageColor7}{rgb}{0.03137254901960784,0.2897347174163783,0.570319108035371}
-\definecolor{busVoltageColor8}{rgb}{0.03137254901960784,0.29379469434832756,0.5763475586312957}
-\definecolor{busVoltageColor9}{rgb}{0.03483275663206459,0.32207612456747403,0.6152249134948098}
-\definecolor{busVoltageColor10}{rgb}{0.05636293733179547,0.34963475586312953,0.6367550941945406}
-\definecolor{busVoltageColor3}{rgb}{0.08404459823144944,0.38506728181468663,0.6644367550941945}
+\definecolor{busVoltageColor5}{rgb}{0.366643598615917,0.6461822376009227,0.8185467128027681}
+\definecolor{busVoltageColor6}{rgb}{0.03137254901960784,0.21259515570934256,0.4557785467128028}
+\definecolor{busVoltageColor7}{rgb}{0.03137254901960784,0.3140945790080738,0.606489811610919}
+\definecolor{busVoltageColor8}{rgb}{0.03175701653210304,0.31813917723952323,0.6121491733948482}
+\definecolor{busVoltageColor9}{rgb}{0.06251441753171857,0.35750865051903113,0.6429065743944637}
+\definecolor{busVoltageColor10}{rgb}{0.087120338331411,0.38900422914263744,0.6675124951941561}
+\definecolor{busVoltageColor3}{rgb}{0.1209534794309881,0.4323106497500961,0.7013456362937333}
 \definecolor{busVoltageColor11}{rgb}{0.9686274509803922,0.984313725490196,1.0}
 \definecolor{transmissionlineColor}{RGB}{163, 108, 101}
 
-\fill[draw=black,fill=busVoltageColor0] (A) circle (3pt) node[below,yshift=-2pt]{\tiny 0.53 pu};
+\fill[draw=black,fill=busVoltageColor0] (A) circle (3pt) node[below,yshift=-2pt]{\tiny 0.73 pu};
 \fill[draw=black,fill=busVoltageColor0] (Aleft) circle (3pt) node[below,yshift=-2pt]{};
 \fill[draw=black,fill=busVoltageColor0] (Aright1) circle (3pt) node[below,yshift=-2pt]{};
 \fill[draw=black,fill=busVoltageColor0] (Aright2) circle (3pt) node[below,yshift=-2pt]{};
-\fill[draw=black,fill=busVoltageColor1] (B) circle (3pt) node[right,xshift=50pt]{\tiny 0.33 pu};
+\fill[draw=black,fill=busVoltageColor1] (B) circle (3pt) node[right,xshift=50pt]{\tiny 0.50 pu};
 \fill[draw=black,fill=busVoltageColor1] (Bleft1) circle (3pt) node[right,xshift=50pt]{};
 \fill[draw=black,fill=busVoltageColor1] (Bleft2) circle (3pt) node[right,xshift=50pt]{};
 \fill[draw=black,fill=busVoltageColor1] (Bright) circle (3pt) node[right,xshift=50pt]{};
-\fill[draw=black,fill=busVoltageColor4] (E) circle (3pt) node[left,xshift=-50pt]{\tiny 0.50 pu};
+\fill[draw=black,fill=busVoltageColor4] (E) circle (3pt) node[left,xshift=-50pt]{\tiny 0.44 pu};
 \fill[draw=black,fill=busVoltageColor4] (Eleft) circle (3pt) node[left,xshift=-50pt]{};
 \fill[draw=black,fill=busVoltageColor4] (Eright) circle (3pt) node[left,xshift=-50pt]{};
-\fill[draw=black,fill=busVoltageColor2] (C) circle (3pt) node[right, below, xshift=7pt, yshift=-2pt]{\tiny 0.84 pu};
+\fill[draw=black,fill=busVoltageColor2] (C) circle (3pt) node[right, below, xshift=7pt, yshift=-2pt]{\tiny 0.86 pu};
 \fill[draw=black,fill=busVoltageColor2] (exc) circle (3pt) node[right, below, xshift=7pt, yshift=-2pt]{};
 \fill[draw=black,fill=busVoltageColor2] (Cright2) circle (3pt) node[right, below, xshift=7pt, yshift=-2pt]{};
-\fill[draw=black, fill=busVoltageColor5] (F) circle (3pt) node[right, below, xshift=17pt, yshift=-2pt]{\tiny 0.40 pu};
+\fill[draw=black, fill=busVoltageColor5] (F) circle (3pt) node[right, below, xshift=17pt, yshift=-2pt]{\tiny 0.46 pu};
 \fill[draw=black, fill=busVoltageColor5] (Fright) circle (3pt) node[right, below, xshift=17pt]{};
-\fill[draw=black,fill=busVoltageColor6] (CD5) circle (3pt) node[right]{\tiny 0.82 pu};
+\fill[draw=black,fill=busVoltageColor6] (CD5) circle (3pt) node[right]{\tiny 0.84 pu};
 \fill[draw=black,fill=busVoltageColor7] (CD4) circle (3pt) node[left]{\tiny 0.75 pu};
 \fill[draw=black,fill=busVoltageColor8] (CD3) circle (3pt) node[right]{\tiny 0.75 pu};
-\fill[draw=black,fill=busVoltageColor9] (CD2) circle (3pt) node[left]{\tiny 0.73 pu};
-\fill[draw=black,fill=busVoltageColor10] (CD1) circle (3pt) node[right]{\tiny 0.70 pu};
-\fill[draw=black,fill=busVoltageColor3] (D) circle (3pt) node[left, below, xshift=-25pt, yshift=-2pt]{\tiny 0.67 pu};
-\path (Bleft2) --++(0,3) node[midway, above] (fault_bus) {};
+\fill[draw=black,fill=busVoltageColor9] (CD2) circle (3pt) node[left]{\tiny 0.72 pu};
+\fill[draw=black,fill=busVoltageColor10] (CD1) circle (3pt) node[right]{\tiny 0.69 pu};
+\fill[draw=black,fill=busVoltageColor3] (D) circle (3pt) node[left, below, xshift=-25pt, yshift=-2pt]{\tiny 0.65 pu};
+\path (E_right) --++(0,1)--++(3.5,0)--++(0,-1) node[midway, above] (fault_bus) {};
 \fill[draw=black,fill=busVoltageColor11] (fault_bus) circle (3pt) node[above]{\tiny 0.00 pu};
 
-\draw[Stealth-, line width=2.5662229153423546pt, color=transmissionlineColor, shorten >=5pt, shorten <=5pt, postaction={decorate}, decoration={markings, mark=at position 0.5 with {\node[current label] {1.94 kA};}}] (B) --++(0,3);
-\draw[Stealth-, line width=2.0124915389991145pt, color=transmissionlineColor, shorten >=5pt, shorten <=5pt, postaction={decorate}, decoration={markings, mark=at position 0.5 with {\node[current label] {0.59 kA};}}] (E) --++(0,1.4) --++(2.4,0)--++(0,1.6);
-\draw[Stealth-, line width=3.0218708662500395pt, color=transmissionlineColor, shorten >=5pt, shorten <=5pt, postaction={decorate}, decoration={markings, mark=at position 0.5 with {\node[current label] {3.05 kA};}}] (B) --++(0,-12)--++(-3,0) --++(0,-1);
-\draw[-Stealth, line width=2.1730926707708185pt, color=transmissionlineColor, shorten >=5pt, shorten <=5pt, postaction={decorate}, decoration={markings, mark=at position 0.5 with {\node[current label] {0.98 kA};}}] (E_right) --++(0,1)--++(3.5,0)--++(0,-1);
-\draw[Stealth-, line width=2.0pt, color=transmissionlineColor, shorten >=5pt, shorten <=5pt, postaction={decorate}, decoration={markings, mark=at position 0.5 with {\node[current label] {0.55 kA};}}] (F_right) --++(0,1)--++(1.5,0) --++(0,3);
-\draw[-Stealth, line width=2.1887874626415127pt, color=transmissionlineColor, shorten >=5pt, shorten <=5pt, postaction={decorate}, decoration={markings, mark=at position 0.5 with {\node[current label] {1.02 kA};}}] (CD5.center) --++(0,-1)--++(3,0)--++(C);
-\draw[-Stealth, line width=2.217634419468342pt, color=transmissionlineColor, shorten >=5pt, shorten <=5pt, postaction={decorate}, decoration={markings, mark=at position 0.5 with {\node[xshift = -25pt,current label] {1.09 kA};}}] (CD4.center) --++(0,-1);
-\draw[Stealth-, line width=2.2494251974781996pt, color=transmissionlineColor, shorten >=5pt, shorten <=5pt, postaction={decorate}, decoration={markings, mark=at position 0.5 with {\node[xshift = -25pt,current label] {1.16 kA};}}] (CD3.center) --++(0,-1);
-\draw[Stealth-, line width=2.2696596609737747pt, color=transmissionlineColor, shorten >=5pt, shorten <=5pt, postaction={decorate}, decoration={markings, mark=at position 0.5 with {\node[xshift = -25pt,current label] {1.21 kA};}}] (CD2.center) --++(0,-1);
-\draw[Stealth-, line width=2.3553032678190826pt, color=transmissionlineColor, shorten >=5pt, shorten <=5pt, postaction={decorate}, decoration={markings, mark=at position 0.5 with {\node[xshift = -25pt,current label] {1.42 kA};}}] (CD1.center)--++(0,-1);
-\draw[Stealth-, line width=2.3681613525416383pt, color=transmissionlineColor, shorten >=5pt, shorten <=5pt, postaction={decorate}, decoration={markings, mark=at position 0.5 with {\node[current label] {1.45 kA};}}] (D.center) --++(0,-3);
-\draw[Stealth-, line width=2.3681613525435288pt, color=transmissionlineColor, shorten >=5pt, shorten <=5pt, postaction={decorate}, decoration={markings, mark=at position 0.5 with {\node[current label] {1.45 kA};}}] (E) --++(D);
-\draw[Stealth-, line width=2.042534470113318pt, color=transmissionlineColor, shorten >=5pt, shorten <=5pt, postaction={decorate}, decoration={markings, mark=at position 0.55 with {\node[current label] {0.66 kA};}}] (F) --++(0,1)--++(-2,0) --++(0,3);
-\draw[-Stealth, line width=6.0pt, color=transmissionlineColor, shorten >=5pt, shorten <=5pt, postaction={decorate}, decoration={markings, mark=at position 0.5 with {\node[current label] {10.31 kA};}}] (A) --++(fault_bus);
-\draw[Stealth-, line width=4.42506726792716pt, color=transmissionlineColor, shorten >=5pt, shorten <=5pt, postaction={decorate}, decoration={markings, mark=at position 0.5 with {\node[current label] {6.47 kA};}}] (fault_bus) --++(B);
+\draw[Stealth-, line width=3.3529450841553166pt, color=transmissionlineColor, shorten >=5pt, shorten <=5pt, postaction={decorate}, decoration={markings, mark=at position 0.5 with {\node[current label] {2.21 kA};}}] (Bleft2) --++(0,3);
+\draw[Stealth-, line width=3.3529450841553166pt, color=transmissionlineColor, shorten >=5pt, shorten <=5pt, postaction={decorate}, decoration={markings, mark=at position 0.5 with {\node[current label] {2.21 kA};}}] (B) --++(0,3);
+\draw[Stealth-, line width=4.281931289566662pt, color=transmissionlineColor, shorten >=5pt, shorten <=5pt, postaction={decorate}, decoration={markings, mark=at position 0.5 with {\node[current label] {3.58 kA};}}] (E) --++(0,1.4) --++(2.4,0)--++(0,1.6);
+\draw[Stealth-, line width=3.319405889064387pt, color=transmissionlineColor, shorten >=5pt, shorten <=5pt, postaction={decorate}, decoration={markings, mark=at position 0.5 with {\node[current label] {2.16 kA};}}] (B) --++(0,-12)--++(-3,0) --++(0,-1);
+\draw[Stealth-, line width=2.0875453558172277pt, color=transmissionlineColor, shorten >=5pt, shorten <=5pt, postaction={decorate}, decoration={markings, mark=at position 0.5 with {\node[current label] {0.35 kA};}}] (F_right) --++(0,1)--++(1.5,0) --++(0,3);
+\draw[-Stealth, line width=2.755324945982389pt, color=transmissionlineColor, shorten >=5pt, shorten <=5pt, postaction={decorate}, decoration={markings, mark=at position 0.5 with {\node[current label] {1.33 kA};}}] (CD5.center) --++(0,-1)--++(3,0)--++(C);
+\draw[Stealth-, line width=2.8019216222623085pt, color=transmissionlineColor, shorten >=5pt, shorten <=5pt, postaction={decorate}, decoration={markings, mark=at position 0.5 with {\node[xshift = -25pt,current label] {1.40 kA};}}] (CD4.center) --++(0,-1);
+\draw[Stealth-, line width=2.854378258784124pt, color=transmissionlineColor, shorten >=5pt, shorten <=5pt, postaction={decorate}, decoration={markings, mark=at position 0.5 with {\node[xshift = -25pt,current label] {1.48 kA};}}] (CD3.center) --++(0,-1);
+\draw[Stealth-, line width=2.8875452070280083pt, color=transmissionlineColor, shorten >=5pt, shorten <=5pt, postaction={decorate}, decoration={markings, mark=at position 0.5 with {\node[xshift = -25pt,current label] {1.52 kA};}}] (CD2.center) --++(0,-1);
+\draw[Stealth-, line width=3.0274282575454627pt, color=transmissionlineColor, shorten >=5pt, shorten <=5pt, postaction={decorate}, decoration={markings, mark=at position 0.5 with {\node[xshift = -25pt,current label] {1.73 kA};}}] (CD1.center)--++(0,-1);
+\draw[Stealth-, line width=3.0486758248260566pt, color=transmissionlineColor, shorten >=5pt, shorten <=5pt, postaction={decorate}, decoration={markings, mark=at position 0.5 with {\node[current label] {1.76 kA};}}] (D.center) --++(0,-3);
+\draw[Stealth-, line width=3.0486758248290227pt, color=transmissionlineColor, shorten >=5pt, shorten <=5pt, postaction={decorate}, decoration={markings, mark=at position 0.5 with {\node[current label] {1.76 kA};}}] (E) --++(D);
+\draw[Stealth-, line width=2.0pt, color=transmissionlineColor, shorten >=5pt, shorten <=5pt, postaction={decorate}, decoration={markings, mark=at position 0.55 with {\node[current label] {0.22 kA};}}] (F) --++(0,1)--++(-2,0) --++(0,3);
+\draw[-Stealth, line width=6.0pt, color=transmissionlineColor, shorten >=5pt, shorten <=5pt, postaction={decorate}, decoration={markings, mark=at position 0.5 with {\node[current label] {6.10 kA};}}] (B) --++(fault_bus);
+\draw[Stealth-, line width=5.444636086126023pt, color=transmissionlineColor, shorten >=5pt, shorten <=5pt, postaction={decorate}, decoration={markings, mark=at position 0.5 with {\node[current label] {5.29 kA};}}] (fault_bus) --++(E);
