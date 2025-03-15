@@ -78,13 +78,22 @@ def plot_fault_case_ratios(base_path, frac=0.05):
     plt.figure(figsize=PLOT_CONFIG["fig_size"])
     plt.boxplot(box_data, patch_artist=True, widths=0.6)
     # Configure axes
+    # Show tick marks for all weeks
+    xticks = range(1, len(week_labels) + 1)  # Tick positions for all weeks
+
+    # Create labels: display only for every 2 weeks, empty strings for others
+    xticklabels = [
+        week_labels[i] if (i + 1) % 3 == 1 else "" for i in range(len(week_labels))
+    ]
+
+    # Set ticks and labels
     plt.xticks(
-        ticks=range(1, len(week_labels) + 1),
-        labels=week_labels,
-        rotation=45,
+        ticks=xticks,
+        labels=xticklabels,
         ha="center",
-        fontsize=13,
+        fontsize=PLOT_CONFIG["tick_labelsize"],
     )
+
     plt.yticks(fontsize=PLOT_CONFIG["tick_labelsize"])
 
     plt.xlabel("Week Number", fontsize=PLOT_CONFIG["axis_labelsize"])
@@ -497,17 +506,47 @@ def plot_fault_without_gen(base_path_with_gen, base_path_without_gen):
     xticks = list(range(0, num_points + 1, 720))  # Mark every 30 days
     xticklabels = [f"{(i+1)//144}d" for i in xticks]
 
-    plt.figure(figsize=PLOT_CONFIG["fig_size"])
-    plt.plot(
+    fig, axs = plt.subplots(2, 1, figsize=PLOT_CONFIG["fig_size"], sharex=True)
+    axs[0].plot(
         fault_ratio_comparison["ratio_with_gen"],
-        label="With Gen",
+        label="Case 1",
         linewidth=PLOT_CONFIG["line_width"],
     )
-    plt.plot(
+    axs[0].plot(
         fault_ratio_comparison["ratio_without_gen"],
-        label="Without Gen",
+        label="Case 2",
         linewidth=PLOT_CONFIG["line_width"],
     )
+    axs[0].tick_params(axis="y", labelsize=PLOT_CONFIG["tick_labelsize"])
+    axs[0].set_ylabel("Fault Case Ratio", fontsize=PLOT_CONFIG["axis_labelsize"])
+    axs[0].legend(fontsize=PLOT_CONFIG["legend_fontsize"], loc="upper right")
+    axs[0].grid(True)
+    # Plot the difference
+    axs[1].plot(
+        fault_ratio_comparison["ratio_with_gen"]
+        - fault_ratio_comparison["ratio_without_gen"],
+        label="Difference",
+        linewidth=PLOT_CONFIG["line_width"],
+        color="#2e8b57ff",
+    )
+    axs[1].set_ylabel("Difference in Ratio", fontsize=PLOT_CONFIG["axis_labelsize"])
+    axs[1].grid(True)
+    # plt.plot(
+    #     fault_ratio_comparison["ratio_with_gen"],
+    #     label="Case 1",
+    #     linewidth=PLOT_CONFIG["line_width"],
+    # )
+    # plt.plot(
+    #     fault_ratio_comparison["ratio_without_gen"],
+    #     label="Case 2",
+    #     linewidth=PLOT_CONFIG["line_width"],
+    # )
+    # plt.plot(
+    #     fault_ratio_comparison["ratio_with_gen"]
+    #     - fault_ratio_comparison["ratio_without_gen"],
+    #     label="Difference",
+    #     linewidth=PLOT_CONFIG["line_width"],
+    # )
     plt.xticks(xticks, xticklabels, fontsize=PLOT_CONFIG["tick_labelsize"])
     plt.yticks(fontsize=PLOT_CONFIG["tick_labelsize"])
     plt.xlabel("Time (Days)", fontsize=PLOT_CONFIG["axis_labelsize"])
@@ -519,7 +558,7 @@ def plot_fault_without_gen(base_path_with_gen, base_path_without_gen):
     plt.show()
 
 
-# plot_fault_without_gen("timeseries_results_reference", "timeseries_results_without_gen")
+plot_fault_without_gen("timeseries_results_reference", "timeseries_results_without_gen")
 
 
 def plot_fault_primaryfault_bar(
@@ -820,7 +859,7 @@ def plot_fault_with_optimization(base_path, base_path_with_optimization):
     if fault_ratio_comparison.empty:
         print("NO Data Found")
         return
-
+    fault_ratio_comparison = fault_ratio_comparison[:-145]
     # line plot is boring
 
     # num_points = fault_ratio_comparison.shape[0]
@@ -869,7 +908,7 @@ def plot_fault_with_optimization(base_path, base_path_with_optimization):
     positions = range(1, len(week_labels) + 1)
 
     # Plot original data
-    plt.boxplot(
+    box_original = plt.boxplot(
         box_data_original,
         positions=[p - 0.2 for p in positions],
         widths=0.3,
@@ -879,7 +918,7 @@ def plot_fault_with_optimization(base_path, base_path_with_optimization):
     )
 
     # Plot optimized data
-    plt.boxplot(
+    box_optimized = plt.boxplot(
         box_data_with_optimization,
         positions=[p + 0.2 for p in positions],
         widths=0.3,
@@ -889,32 +928,42 @@ def plot_fault_with_optimization(base_path, base_path_with_optimization):
     )
 
     # Configure axes
+    # Show labels only at every 2 weeks (e.g., 1, 3, 5, ...)
+    # Show tick marks for all weeks
+    xticks = range(1, len(week_labels) + 1)  # Tick positions for all weeks
+
+    # Create labels: display only for every 2 weeks, empty strings for others
+    xticklabels = [
+        week_labels[i] if (i + 1) % 3 == 1 else "" for i in range(len(week_labels))
+    ]
+
+    # Set ticks and labels
     plt.xticks(
-        ticks=positions,
-        labels=week_labels,
-        rotation=45,
+        ticks=xticks,
+        labels=xticklabels,
         ha="center",
         fontsize=PLOT_CONFIG["tick_labelsize"],
     )
     plt.yticks(fontsize=PLOT_CONFIG["tick_labelsize"])
     plt.ylim(0.14, 0.26)
     plt.xlabel("Week Number", fontsize=PLOT_CONFIG["axis_labelsize"])
-    plt.ylabel("Fault Case Ratio Distribution", fontsize=PLOT_CONFIG["axis_labelsize"])
+    plt.ylabel("Fault Case Ratio", fontsize=PLOT_CONFIG["axis_labelsize"])
     plt.grid(True, axis="y", linestyle="--", alpha=0.7)
     plt.legend(
-        ["Without Optimization", "With Optimization"],
+        [box_original["boxes"][0], box_optimized["boxes"][0]],
+        ["Case 1", "Case 4"],
         fontsize=PLOT_CONFIG["legend_fontsize"],
     )
     plt.tight_layout()
 
     # Save the figure as a PDF
-    # plt.savefig("figure/fault_case_ratios_boxplot.pdf", format="pdf")
+    plt.savefig("figure/fault_case_ratios_comparison_optimization.pdf", format="pdf")
     plt.show()
 
 
-plot_fault_with_optimization(
-    "timeseries_results_reference", "timeseries_results_new_protection_zone"
-)
+# plot_fault_with_optimization(
+#     "timeseries_results_reference", "timeseries_results_new_protection_zone"
+# )
 
 
 def plot_fault_with_weak_exgrid(base_path, base_path_weak_exgrid):
@@ -946,7 +995,9 @@ def plot_fault_with_weak_exgrid(base_path, base_path_weak_exgrid):
             folder_path_with_weak_exgrid,
             usecols=["Total_fault_cases", "Total_cases_analyzed"],
         )
-
+        # Ensure df_with_gen has the same number of rows as df_without_gen, because the simualtion duration of wihout gen case is one month
+        if df_original.shape[0] > df_with_weak_exgrid.shape[0]:
+            df_original = df_original.iloc[: df_with_weak_exgrid.shape[0]]
         # Store all valid ratios from this file
         fault_ratio_comparison = pd.concat(
             [
@@ -974,30 +1025,35 @@ def plot_fault_with_weak_exgrid(base_path, base_path_weak_exgrid):
         return
 
     num_points = fault_ratio_comparison.shape[0]
-    xticks = list(range(0, num_points, 4320))  # Mark every 30 days
-    xticklabels = [f"{i//144}d" for i in xticks]
+    xticks = list(range(0, num_points + 1, 720))  # Mark every 30 days
+    xticklabels = [f"{(i+1)//144}d" for i in xticks]
 
     plt.figure(figsize=PLOT_CONFIG["fig_size"])
     plt.plot(
         fault_ratio_comparison["ratio_original"],
-        label="With Strong Exgrid",
+        label="Case 1",
         linewidth=PLOT_CONFIG["line_width"],
     )
     plt.plot(
         fault_ratio_comparison["ratio_with_weak_exgrid"],
-        label="With Weak Exgrid",
+        label="Case 3",
         linewidth=PLOT_CONFIG["line_width"],
     )
     plt.xticks(xticks, xticklabels, fontsize=PLOT_CONFIG["tick_labelsize"])
     plt.yticks(fontsize=PLOT_CONFIG["tick_labelsize"])
+    plt.ylim(0.23, 0.29)
     plt.xlabel("Time (Days)", fontsize=PLOT_CONFIG["axis_labelsize"])
     plt.ylabel("Fault Case Ratio", fontsize=PLOT_CONFIG["axis_labelsize"])
-    plt.legend(fontsize=PLOT_CONFIG["legend_fontsize"])
+    plt.legend(fontsize=PLOT_CONFIG["legend_fontsize"], loc="upper right")
+    plt.tight_layout()
     plt.grid(True)
+    plt.savefig("figure/fault_with_weak_exgrid.pdf", format="pdf")
     plt.show()
 
 
-# plot_fault_with_weak_exgrid("timeseries_results_test", "timeseries_results_test2")
+# plot_fault_with_weak_exgrid(
+#     "timeseries_results_reference", "timeseries_results_weak_exgrid"
+# )
 
 
 def plot_fault_compareload_underreach(base_path):
