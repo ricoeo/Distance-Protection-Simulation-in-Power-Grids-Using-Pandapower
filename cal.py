@@ -7,4 +7,4 @@ def func(magnitude, angle):
     return x + 1j * y
 
 
-print(func(12.99410626, 79.9745932))
+print(func(5.735411233, 82.10568998))

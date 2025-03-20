@@ -410,7 +410,15 @@ def plot_fault_device_distribution_bar(base_path):
 
     # Plot the bar chart
     plt.figure(figsize=PLOT_CONFIG["fig_size"])
-    avg_faults.plot(kind="bar", edgecolor="black")
+    avg_faults.plot(kind="bar", edgecolor="black", label="Total Fault")
+    # Add stacked bar for index 14 and 15
+    plt.bar(
+        14, 14.22, color="orange", edgecolor="black", label="Primary Fault", width=0.5
+    )
+    plt.bar(15, 5, color="orange", edgecolor="black", width=0.5)
+    plt.text(
+        15, 5, "5", ha="center", va="bottom", fontsize=PLOT_CONFIG["value_fontsize"]
+    )
     for y in range(50, 450, 50):
         plt.axhline(y=y, color="gray", linestyle="--", linewidth=0.5, zorder=0)
     plt.xlabel("Device Number", fontsize=PLOT_CONFIG["axis_labelsize"])
@@ -434,12 +442,14 @@ def plot_fault_device_distribution_bar(base_path):
         )
     plt.yticks(fontsize=PLOT_CONFIG["tick_labelsize"])
     plt.tight_layout()
-    plt.savefig("figure/fault_device_distribution.pdf", format="pdf")
+    plt.legend(fontsize=PLOT_CONFIG["legend_fontsize"])
+    plt.savefig("figure/fault_device_distribution_with_primary.pdf", format="pdf")
     # plt.grid(True)
+
     plt.show()
 
 
-# plot_fault_device_distribution_bar("timeseries_results_reference")
+plot_fault_device_distribution_bar("timeseries_results_reference")
 
 
 def plot_fault_without_gen(base_path_with_gen, base_path_without_gen):
@@ -558,7 +568,7 @@ def plot_fault_without_gen(base_path_with_gen, base_path_without_gen):
     plt.show()
 
 
-plot_fault_without_gen("timeseries_results_reference", "timeseries_results_without_gen")
+# plot_fault_without_gen("timeseries_results_reference", "timeseries_results_without_gen")
 
 
 def plot_fault_primaryfault_bar(
@@ -1274,3 +1284,122 @@ def plot_fault_compareload_underreach(base_path):
 
 
 # plot_fault_compareload_underreach("timeseries_results_reference")
+
+
+def calculate_seasonal_outliers(base_path):
+    """
+    Reads fault case data from results folders and calculates seasonal outlier statistics.
+
+    Parameters:
+        base_path (str): Path to the 'timeseries_results' directory
+
+    Returns:
+        dict: Seasonal outlier analysis results with warm/cold season statistics
+    """
+    # Initialize DataFrame for ratios
+    ratios = pd.DataFrame()
+
+    # Data reading logic (from original function)
+    i = 0  # Start with results_0
+    while True:
+        folder_name = f"results_{i}"
+        folder_path = os.path.join(base_path, folder_name, "custom")
+
+        if not os.path.exists(folder_path):
+            break  # Stop when a results_* folder is missing
+
+        excel_path = os.path.join(folder_path, "Value.xlsx")
+        if os.path.exists(excel_path):
+            # Read the Excel file
+            df = pd.read_excel(
+                excel_path, usecols=["Total_fault_cases", "Total_cases_analyzed"]
+            )
+
+            if (
+                "Total_fault_cases" in df.columns
+                and "Total_cases_analyzed" in df.columns
+            ):
+                # Compute the row-wise ratio, avoiding division by zero
+                df["Ratio"] = df["Total_fault_cases"] / df["Total_cases_analyzed"]
+                df["Ratio"] = df["Ratio"].replace(
+                    [float("inf"), -float("inf")], None
+                )  # Handle divide-by-zero cases
+
+                # Store all valid ratios from this file
+                ratios = pd.concat([ratios, df[["Ratio"]].dropna()], ignore_index=True)
+
+        i += 1  # Move to the next results_* folder
+
+    if ratios.empty:
+        print("NO Data Found")
+        return None
+
+    # Remove last 145 rows (from original function)
+    ratios = ratios[:-145]
+
+    # Add week numbers
+    WEEKLY_RESOLUTION = 1008
+    ratios["Week"] = (ratios.index // WEEKLY_RESOLUTION) + 1
+
+    # --- Seasonal Outlier Analysis ---
+    # Define seasonal boundaries
+    WARM_START_WEEK = 14  # April
+    WARM_END_WEEK = 40  # October
+
+    # Initialize seasonal data storage
+    seasonal_data = {
+        "warm": {"weeks": [], "ratios": [], "outliers": [], "iqrs": []},
+        "cold": {"weeks": [], "ratios": [], "outliers": [], "iqrs": []},
+    }
+
+    # Categorize data and identify outliers per week
+    for week_num, week_data in ratios.groupby("Week"):
+        week_ratios = week_data["Ratio"].values
+
+        # Calculate weekly IQR and outlier bounds
+        q1 = np.quantile(week_ratios, 0.25)
+        q3 = np.quantile(week_ratios, 0.75)
+        iqr = q3 - q1
+        lower_bound = q1 - 1.5 * iqr
+        upper_bound = q3 + 1.5 * iqr
+
+        # Identify outliers for this week
+        outliers = week_ratios[
+            (week_ratios < lower_bound) | (week_ratios > upper_bound)
+        ]
+
+        # Categorize by season
+        if WARM_START_WEEK <= week_num < WARM_END_WEEK:
+            season = "warm"
+        else:
+            season = "cold"
+
+        # Store data
+        seasonal_data[season]["weeks"].append(week_num)
+        seasonal_data[season]["ratios"].append(week_ratios)
+        seasonal_data[season]["outliers"].append(outliers)
+        seasonal_data[season]["iqrs"].append(iqr)
+
+    # Calculate seasonal statistics
+    results = {}
+    for season, data in seasonal_data.items():
+        total_ratios = np.concatenate(data["ratios"])
+        total_outliers = np.concatenate(data["outliers"])
+
+        results[season] = {
+            "outlier_frequency": len(total_outliers)
+            / len(total_ratios),  # Outliers relative to season
+            "mean_ratio": np.mean(total_ratios),  # Mean fault ratio for the season
+            "std_dev": np.std(total_ratios),  # Standard deviation of fault ratios
+            "avg_box_length": np.mean(
+                data["iqrs"]
+            ),  # Average IQR (box length) for the season
+            "num_weeks": len(data["weeks"]),  # Number of weeks in the season
+            "total_outliers": len(total_outliers),  # Total outliers in the season
+            "total_ratios": len(total_ratios),  # Total data points in the season
+        }
+
+    return results
+
+
+# print(calculate_seasonal_outliers("timeseries_results_reference"))

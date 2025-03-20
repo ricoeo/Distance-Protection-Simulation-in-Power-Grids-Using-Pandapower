@@ -91,38 +91,70 @@ def create_network_with_timestepdata(excel_file, wind_p, wind_q, load_p, load_q)
 
 
 # Usage
+# 353
+# wind_p1 = pd.Series(
+#     [
+#         0.300262006,
+#         0.878456093,
+#         0.126953949,
+#         0.400349341,
+#         0.200174671,
+#         1.000873354,
+#         0.018136278,
+#     ]
+# )
+# 476
+# wind_p2 = pd.Series(
+#     [
+#         8.653514251,
+#         3.679389946,
+#         6.534830395,
+#         11.538019,
+#         5.769009501,
+#         28.8450475,
+#         0.933547199,
+#     ]
+# )
+# 93
 wind_p1 = pd.Series(
     [
-        0.300262006,
-        0.878456093,
-        0.126953949,
-        0.400349341,
-        0.200174671,
-        1.000873354,
-        0.018136278,
+        1.483363464,
+        0.622553816,
+        0.700611348,
+        1.977817951,
+        0.988908976,
+        4.944544878,
+        0.100087335,
     ]
 )
+# 291
 wind_p2 = pd.Series(
     [
-        8.653514251,
-        3.679389946,
-        6.534830395,
-        11.538019,
-        5.769009501,
-        28.8450475,
-        0.933547199,
+        1.674608665,
+        1.192890534,
+        0.622553816,
+        2.232811553,
+        1.116405777,
+        5.582028883,
+        0.088936259,
     ]
 )
-
 wind_q1 = 0.3 * wind_p1
 wind_q2 = 0.3 * wind_p2
+# 353
+# load_p1 = pd.Series([228.5786613, 228.5786613, 114.2893306])
+# load_q1 = pd.Series([-2.697479198, -2.697479198, -1.348739599])
 
-load_p1 = pd.Series([228.5786613, 228.5786613, 114.2893306])
-load_q1 = pd.Series([-2.697479198, -2.697479198, -1.348739599])
+# load_p2 = pd.Series([228.5786613, 228.5786613, 114.2893306])
+# load_q2 = pd.Series([-2.697479198, -2.697479198, -1.348739599])
 
-load_p2 = pd.Series([228.5786613, 228.5786613, 114.2893306])
-load_q2 = pd.Series([-2.697479198, -2.697479198, -1.348739599])
+# 93
+load_p1 = pd.Series([314.4821634, 314.4821634, 157.2410817])
+load_q1 = pd.Series([1.394948903, 1.394948903, 0.697474452])
 
+# 291
+load_p2 = pd.Series([153.9507101, 153.9507101, 76.97535507])
+load_q2 = pd.Series([-2.964443182, -2.964443182, -1.482221591])
 
 net_loadhigh = create_network_with_timestepdata(
     excel_file, wind_p1, wind_q1, load_p1, load_q1
@@ -136,8 +168,8 @@ Protection_devices = setup_protection_zones(net_loadhigh, excel_file)
 
 # Call the function to simulate faults and get protection data
 protection_data_1 = simulate_faults_for_all_lines(net_loadhigh, Protection_devices)
-protection_df_1 = pd.DataFrame(protection_data_1)
-protection_df_1.to_excel("protection_data_1.xlsx")
+# protection_df_1 = pd.DataFrame(protection_data_1)
+# protection_df_1.to_excel("protection_data_1.xlsx")
 protection_data_2 = simulate_faults_for_all_lines(net_loadlow, Protection_devices)
 
 # Convert the list of dictionaries into a DataFrame

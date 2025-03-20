@@ -176,6 +176,87 @@ def create_network_without_gen(excel_file):
     return net
 
 
+def create_network_weak_exg(excel_file):
+    # Select sheets to read
+    bus_data = pd.read_excel(excel_file, sheet_name="bus_data", index_col=0)
+    load_data = pd.read_excel(excel_file, sheet_name="load_data", index_col=0)
+    line_data = pd.read_excel(excel_file, sheet_name="line_data", index_col=0)
+    external_grid_data = pd.read_excel(
+        excel_file, sheet_name="external_grid_data", index_col=0
+    )
+    wind_gen_data = pd.read_excel(excel_file, sheet_name="wind_gen_data", index_col=0)
+
+    net = pp.create_empty_network()
+
+    # buses
+    for idx in bus_data.index:
+        pp.create_bus(
+            net,
+            vn_kv=bus_data.loc[idx, "vn_kv"],
+            name=bus_data.loc[idx, "name"],
+            type=bus_data.loc[idx, "type"],
+            geodata=tuple(
+                map(int, bus_data.loc[idx, "geodata"].strip("()").split(","))
+            ),
+        )
+    # lines
+    for idx in line_data.index:
+        pp.create_line_from_parameters(
+            net,
+            from_bus=line_data.loc[idx, "from_bus"],
+            to_bus=line_data.loc[idx, "to_bus"],
+            length_km=line_data.loc[idx, "length_km"],
+            r_ohm_per_km=line_data.loc[idx, "r_ohm_per_km"],
+            x_ohm_per_km=line_data.loc[idx, "x_ohm_per_km"],
+            c_nf_per_km=line_data.loc[idx, "c_nf_per_km"],
+            r0_ohm_per_km=line_data.loc[idx, "r0_ohm_per_km"],
+            x0_ohm_per_km=line_data.loc[idx, "x0_ohm_per_km"],
+            c0_nf_per_km=line_data.loc[idx, "c0_nf_per_km"],
+            max_i_ka=line_data.loc[idx, "max_i_ka"],
+            parallel=line_data.loc[idx, "parallel"],
+        )
+
+    # loads
+    for idx in load_data.index:
+        pp.create_load(
+            net,
+            bus=load_data.at[idx, "bus"],
+            p_mw=load_data.at[idx, "p_mw"],
+            q_mvar=load_data.at[idx, "q_mvar"],
+            name=load_data.at[idx, "name"],
+        )
+    # external grids
+    for idx in external_grid_data.index:
+        pp.create_ext_grid(
+            net,
+            bus=external_grid_data.at[idx, "bus"],
+            vm_pu=external_grid_data.at[idx, "vm_pu"],
+            va_degree=external_grid_data.at[idx, "va_degree"],
+            name=external_grid_data.at[idx, "name"],
+            s_sc_max_mva=1e2,
+            rx_max=0.1,
+        )
+
+    # generators
+    for idx in wind_gen_data.index:
+        # if idx == 0:
+        #     continue
+        pp.create_sgen(
+            net,
+            bus=wind_gen_data.at[idx, "bus"],
+            p_mw=wind_gen_data.at[idx, "p_mw"],
+            q_mvar=wind_gen_data.at[idx, "q_mvar"],
+            sn_mva=wind_gen_data.at[idx, "sn_mva"],
+            name=wind_gen_data.at[idx, "name"],
+            generator_type="current_source",
+            k=1.2,
+            kappa=1.2,
+        )
+
+    print(net)
+    return net
+
+
 def create_network_withoutparallelline(excel_file):
     # test the network without parallel line
     bus_data = pd.read_excel(excel_file, sheet_name="bus_data", index_col=0)
