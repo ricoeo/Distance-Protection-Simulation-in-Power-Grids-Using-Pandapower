@@ -449,7 +449,7 @@ def plot_fault_device_distribution_bar(base_path):
     plt.show()
 
 
-plot_fault_device_distribution_bar("timeseries_results_reference")
+# plot_fault_device_distribution_bar("timeseries_results_reference")
 
 
 def plot_fault_without_gen(base_path_with_gen, base_path_without_gen):
@@ -692,17 +692,22 @@ def plot_fault_primaryfault_bar(
 
 
 def plot_fault_overunderreach_bar(
-    base_path_with_gen, base_path_without_gen, base_path_with_weakexgrid
+    base_path_with_gen,
+    base_path_without_gen,
+    base_path_with_weakexgrid,
+    base_path_with_optimization,
 ):
-    # Reads all results folders inside base_path_with_gen, base_path_without_gen, and base_path_with_weakexgrid, extracts overreach and underreach errors, and plots them.
+    # Reads all results folders inside base_path_with_gen, base_path_without_gen, base_path_with_weakexgrid, and base_path_with_optimization, extracts overreach and underreach errors, and plots them.
     reach_error_comparison = pd.DataFrame(
         columns=[
             "overreach_with_gen",
             "overreach_without_gen",
             "overreach_with_weakexgrid",
+            "overreach_with_optimization",
             "underreach_with_gen",
             "underreach_without_gen",
             "underreach_with_weakexgrid",
+            "underreach_with_optimization",
         ]
     )
 
@@ -718,10 +723,14 @@ def plot_fault_overunderreach_bar(
         folder_path_with_weakexgrid = os.path.join(
             base_path_with_weakexgrid, folder_name, "custom", "Value.xlsx"
         )
+        folder_path_with_optimization = os.path.join(
+            base_path_with_optimization, folder_name, "custom", "Value.xlsx"
+        )
         if not (
             os.path.exists(folder_path_with_gen)
             and os.path.exists(folder_path_without_gen)
             and os.path.exists(folder_path_with_weakexgrid)
+            and os.path.exists(folder_path_with_optimization)
         ):
             break  # Stop when a results_* folder is missing
 
@@ -729,6 +738,19 @@ def plot_fault_overunderreach_bar(
         df_with_gen = pd.read_excel(folder_path_with_gen)
         df_without_gen = pd.read_excel(folder_path_without_gen)
         df_with_weakexgrid = pd.read_excel(folder_path_with_weakexgrid)
+        df_with_optimization = pd.read_excel(folder_path_with_optimization)
+
+        # Trim dataframes to the shortest length
+        min_length = min(
+            len(df_with_gen),
+            len(df_without_gen),
+            len(df_with_weakexgrid),
+            len(df_with_optimization),
+        )
+        df_with_gen = df_with_gen.iloc[:min_length]
+        df_without_gen = df_without_gen.iloc[:min_length]
+        df_with_weakexgrid = df_with_weakexgrid.iloc[:min_length]
+        df_with_optimization = df_with_optimization.iloc[:min_length]
 
         # Store all valid errors from this file
         reach_error_comparison = pd.concat(
@@ -741,9 +763,15 @@ def plot_fault_overunderreach_bar(
                         "overreach_with_weakexgrid": df_with_weakexgrid[
                             "Overreach_cases"
                         ],
+                        "overreach_with_optimization": df_with_optimization[
+                            "Overreach_cases"
+                        ],
                         "underreach_with_gen": df_with_gen["Underreach_cases"],
                         "underreach_without_gen": df_without_gen["Underreach_cases"],
                         "underreach_with_weakexgrid": df_with_weakexgrid[
+                            "Underreach_cases"
+                        ],
+                        "underreach_with_optimization": df_with_optimization[
                             "Underreach_cases"
                         ],
                     }
@@ -761,17 +789,21 @@ def plot_fault_overunderreach_bar(
     avg_errors = reach_error_comparison.mean()
     avg_errors = pd.DataFrame(
         {
-            "with_gen": [
+            "Case 1": [
                 avg_errors["overreach_with_gen"],
                 avg_errors["underreach_with_gen"],
             ],
-            "without_gen": [
+            "Case 2": [
                 avg_errors["overreach_without_gen"],
                 avg_errors["underreach_without_gen"],
             ],
-            "with_weakexgrid": [
+            "Case 3": [
                 avg_errors["overreach_with_weakexgrid"],
                 avg_errors["underreach_with_weakexgrid"],
+            ],
+            "Case 4": [
+                avg_errors["overreach_with_optimization"],
+                avg_errors["underreach_with_optimization"],
             ],
         },
         index=["overreach", "underreach"],
@@ -781,13 +813,15 @@ def plot_fault_overunderreach_bar(
     ax = avg_errors.plot(
         kind="bar",
         color={
-            "with_gen": "skyblue",
-            "without_gen": "salmon",
-            "with_weakexgrid": "lightgreen",
+            "Case 1": "skyblue",
+            "Case 2": "salmon",
+            "Case 3": "#4DAF7C",
+            "Case 4": "#FFB61E",
         },  # Distinct colors
         edgecolor="black",
         figsize=PLOT_CONFIG["fig_size"],
         legend=True,  # Show legend
+        zorder=3,  # Set zorder to ensure bars are above the grid
     )
 
     # Add text annotations above the bars
@@ -804,14 +838,18 @@ def plot_fault_overunderreach_bar(
     plt.xlabel("Error Type", fontsize=PLOT_CONFIG["axis_labelsize"])
     plt.ylabel("Average Error Count", fontsize=PLOT_CONFIG["axis_labelsize"])
     plt.grid(True)
-    plt.legend(fontsize=PLOT_CONFIG["legend_fontsize"])
+    plt.legend(fontsize=PLOT_CONFIG["legend_fontsize"], loc="upper left")
     plt.tight_layout()  # Ensure labels fit
+    plt.savefig("figure/fault_overunderreach.pdf", format="pdf")
     plt.show()
 
 
-# plot_fault_overunderreach_bar(
-#     "timeseries_results_test", "timeseries_results_test2", "timeseries_results_test3"
-# )
+plot_fault_overunderreach_bar(
+    "timeseries_results_reference",
+    "timeseries_results_without_gen_longer",
+    "timeseries_results_weak_exgrid_longer",
+    "timeseries_results_new_protection_zone",
+)
 
 
 def plot_fault_with_optimization(base_path, base_path_with_optimization):
