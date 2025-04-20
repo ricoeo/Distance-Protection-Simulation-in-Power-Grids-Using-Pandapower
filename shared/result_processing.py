@@ -844,12 +844,12 @@ def plot_fault_overunderreach_bar(
     plt.show()
 
 
-plot_fault_overunderreach_bar(
-    "timeseries_results_reference",
-    "timeseries_results_without_gen_longer",
-    "timeseries_results_weak_exgrid_longer",
-    "timeseries_results_new_protection_zone",
-)
+# plot_fault_overunderreach_bar(
+#     "timeseries_results_reference",
+#     "timeseries_results_without_gen_longer",
+#     "timeseries_results_weak_exgrid_longer",
+#     "timeseries_results_new_protection_zone",
+# )
 
 
 def plot_fault_with_optimization(base_path, base_path_with_optimization):
