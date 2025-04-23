@@ -6,6 +6,9 @@ from statsmodels.nonparametric.smoothers_lowess import lowess
 from scipy.signal import savgol_filter
 from scipy.ndimage import gaussian_filter1d
 
+"""
+Set of functions for plotting and analyzing fault case ratios.
+"""
 
 # Global plot settings
 PLOT_CONFIG = {
@@ -564,7 +567,7 @@ def plot_fault_without_gen(base_path_with_gen, base_path_without_gen):
     plt.legend(fontsize=PLOT_CONFIG["legend_fontsize"], loc="upper right")
     plt.tight_layout()
     plt.grid(True)
-    plt.savefig("figure/fault_without_gen.pdf", format="pdf")
+    # plt.savefig("figure/fault_without_gen.pdf", format="pdf")
     plt.show()
 
 
@@ -1218,7 +1221,9 @@ def plot_fault_compareload_underreach(base_path):
     axs[0].axvline(
         x=291, color="red", linestyle="--", linewidth=PLOT_CONFIG["line_width"]
     )
-    axs[0].text(192, 2200, "\u2460", color="red", fontsize=20, ha="center")  # ①
+    axs[0].text(
+        192, 2200, "\u2460 \n Load Variance", color="red", fontsize=14, ha="center"
+    )  # ①
 
     axs[0].axvline(
         x=353, color="green", linestyle="--", linewidth=PLOT_CONFIG["line_width"]
@@ -1226,7 +1231,9 @@ def plot_fault_compareload_underreach(base_path):
     axs[0].axvline(
         x=476, color="green", linestyle="--", linewidth=PLOT_CONFIG["line_width"]
     )
-    axs[0].text(414, 2200, "\u2461", color="green", fontsize=20, ha="center")  # ②
+    axs[0].text(
+        414, 2200, "\u2461 \n Wind Variance", color="green", fontsize=14, ha="center"
+    )  # ②
     axs[0].set_ylim(2100, 2300)
     axs[0].tick_params(axis="y", labelsize=PLOT_CONFIG["tick_labelsize"])
 
@@ -1270,6 +1277,27 @@ def plot_fault_compareload_underreach(base_path):
     # axs[1].axvline(
     #     x=472, color="green", linestyle="--", linewidth=PLOT_CONFIG["line_width"]
     # )
+    axs[1].scatter(
+        353, active_power_df.loc[353][0], color="green", s=100, zorder=5
+    )  # Add a circle
+    axs[1].text(
+        356,
+        active_power_df.loc[353][0] + 1.8,
+        "Wind Low",
+        color="green",
+        fontsize=14,
+    )  # Shift text slightly to the right
+    axs[1].scatter(
+        476, active_power_df.loc[476][0], color="green", s=100, zorder=5
+    )  # Add a circle
+    axs[1].text(
+        391,
+        active_power_df.loc[476][0],
+        "Wind High",
+        color="green",
+        fontsize=14,
+        ha="left",
+    )  # Shift text slightly to the right
     axs[1].set_ylabel(
         "Wind B Active Power (MW)",
         labelpad=22.5,
@@ -1308,6 +1336,23 @@ def plot_fault_compareload_underreach(base_path):
     axs[2].set_ylabel(
         "Load Active Power (MW)", labelpad=14, fontsize=PLOT_CONFIG["axis_labelsize"]
     )
+    axs[2].scatter(
+        93, first_load_df["Active Power"][93], color="red", s=100, zorder=5
+    )  # Add a circle
+    axs[2].text(
+        113, first_load_df["Active Power"][93], "Load High", color="red", fontsize=14
+    )  # Shift text slightly to the right
+    axs[2].scatter(
+        291, first_load_df["Active Power"][291], color="red", s=100, zorder=5
+    )  # Add a circle
+    axs[2].text(
+        206,
+        first_load_df["Active Power"][291],
+        "Load Low",
+        color="red",
+        fontsize=14,
+        ha="left",
+    )  # Shift text slightly to the right
     axs[2].set_xticks(xticks)
     axs[2].set_xticklabels(xticklabels, fontsize=PLOT_CONFIG["tick_labelsize"])
     axs[2].set_xlabel("Time (Days)", fontsize=PLOT_CONFIG["axis_labelsize"])
@@ -1317,7 +1362,7 @@ def plot_fault_compareload_underreach(base_path):
     plt.yticks(fontsize=PLOT_CONFIG["tick_labelsize"])
     # plt.xlabel("Time (Days)", fontsize=PLOT_CONFIG["axis_labelsize"])
     plt.tight_layout()
-    plt.savefig("figure/fault_compareload_underreach.pdf")
+    plt.savefig("figure/fault_compareload_underreach_updated.pdf")
     plt.show()
 
 

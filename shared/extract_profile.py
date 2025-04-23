@@ -16,6 +16,12 @@ import warnings
 from scipy import interpolate
 import matplotlib.pyplot as plt
 
+"""
+This script is used to extract load and wind profiles from the SimBench dataset and DWD weather data.
+It creates a pandapower network and applies constant control to the loads and generators based on the extracted profiles.
+It also generates wind turbine power outputs based on wind speed data.
+"""
+
 
 def create_datasource_cccontroller_with_wind_turbine_profiles(
     net, generator_profiles, turbine_id

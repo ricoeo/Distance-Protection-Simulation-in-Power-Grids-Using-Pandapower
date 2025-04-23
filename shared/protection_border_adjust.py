@@ -1,6 +1,10 @@
 import pandas as pd
 import math
 
+"""
+This module contains the gradient descent algorithm to adjust the protection zone boundaries of devices based on measurement data.
+"""
+
 
 def compute_sensed_impedance(r, a):
     """

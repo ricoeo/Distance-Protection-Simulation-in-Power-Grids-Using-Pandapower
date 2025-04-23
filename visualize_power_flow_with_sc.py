@@ -1,5 +1,9 @@
 from shared.library import *
 
+"""
+This script is used to visualize the power flow in a grid network, fault bus at the middle point is the default setting.
+"""
+
 
 def simulate_faults_along_line_for_test(
     net,
@@ -9,7 +13,7 @@ def simulate_faults_along_line_for_test(
     interval_km=0.25,
     plot_powerflow_flag=False,
 ):
-    """Simulate faults along a line by adding temporary buses at specified intervals."""
+    """this function is used to generate the tikz color code for the short circuit current, it is only for visulization purpose"""
     device_data_dict = []
     # Make original line out of service
     line = net.line.loc[line_id]
@@ -144,7 +148,7 @@ def simulate_faults_for_half_line_position(
                 net.line.at[line_id, "to_bus"],
             )
             # Simulate faults along the line
-            simulate_faults_along_line_for_test(
+            simulate_faults_along_line(
                 net,
                 line_id,
                 affected_devices,

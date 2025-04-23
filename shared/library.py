@@ -20,6 +20,15 @@ from pandapower.plotting.collections import *
 import matplotlib.pyplot as plt
 
 
+"""
+This script is used to create a pandapower network with the following features:
+1. It creates a pandapower network based on data read from an Excel file with different variations of the network.
+2. It defines a ProtectionDevice class that represents a protection device in the network.
+3. The short circuit analysis is performed on the network with every in-service line.
+4. Protection device decision as well as the short circuit measuremtns are recorded.
+"""
+
+
 # define some constant parameters
 HV = 110  # High Voltage side in kilovolts
 S_base = 100e6  # Base power in watts (100 MW)

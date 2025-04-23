@@ -4,6 +4,10 @@ from shared.protection_border_adjust import (
     adjust_protection_zone_with_measurement_data as adjust_protection_zone,
 )
 
+"""
+This script implements a custom contoller to update the wind and load profile with each time step and records the simulation results.
+"""
+
 # Read the data from the Excel file
 excel_file = "grid_data_sheet.xlsx"
 
@@ -41,8 +45,7 @@ folder_index = math.ceil(ONE_YEAR_DATAPOINT * 1.0 / save_interval)
 
 for i in range(0, folder_index):
     # Create a new folder for each batch of results
-    if i < 32:
-        continue
+
     output_dir = os.path.join(base_output_dir, f"results_{i}")
     os.makedirs(output_dir, exist_ok=True)
 

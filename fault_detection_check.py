@@ -15,4 +15,4 @@ protection_data = simulate_faults_for_all_lines(net, Protection_devices)
 protection_df = pd.DataFrame(protection_data)
 
 # write to Excel file
-protection_df.to_excel("fault_detection_check_0316_strong.xlsx", index=False)
+protection_df.to_excel("fault_detection_check.xlsx", index=False)
