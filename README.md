@@ -1,4 +1,4 @@
-# Power Grid Simulation and Fault Analysis
+# Distance Protection Simulation in Power Grids Using Pandapower
 
 Welcome to the **Probabilistic Analysis of Distance Protection Accuracy in Power Grids Using Pandapower** project! This repository contains tools and scripts for simulating power grid dynamics, analyzing fault scenarios, and visualizing results. The project is designed to analyze the performance of pair-installed distance protection devices in the AC grid. 
 
